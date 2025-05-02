@@ -20,7 +20,7 @@ Drive).
 
 ## Architecture Overview
 
-The following diagram outlines the high level architectural brekdown of the
+The following diagram outlines the high level architectural breakdown of the
 image composer ![Architecture Overview](assets/architecture.svg.drawio)
 
 The host system should be running a validated and supported Linux distribution
