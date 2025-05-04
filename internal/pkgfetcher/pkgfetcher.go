@@ -24,13 +24,19 @@ func FetchPackages(urls []string, destDir string, workers int) error {
 
 	// create a single progress bar for total files
 	bar := progressbar.NewOptions(total,
-		progressbar.OptionFullWidth(),
+		progressbar.OptionEnableColorCodes(true),
 		progressbar.OptionShowDescriptionAtLineEnd(),
-  		progressbar.OptionSetDescription("downloading"),
-		  progressbar.OptionSetWidth(40),
+		progressbar.OptionSetWidth(30),
   		progressbar.OptionShowCount(),
-  		progressbar.OptionThrottle(100 * time.Millisecond),
-  		
+  		progressbar.OptionThrottle(200 * time.Millisecond),
+		progressbar.OptionSpinnerType(10),
+		progressbar.OptionSetTheme(progressbar.Theme{
+			Saucer:        "[green]=[reset]",
+			SaucerHead:    "[green]>[reset]",
+			SaucerPadding: " ",
+			BarStart:      "[",
+			BarEnd:        "]",
+		  }),
 	)
 
 	// start worker goroutines
@@ -42,7 +48,7 @@ func FetchPackages(urls []string, destDir string, workers int) error {
 				name := path.Base(url)
 
 				// update description to current file
-				bar.Describe(fmt.Sprintf("downloading %s", name))
+				bar.Describe(name)
 
 				err := func() error {
 					resp, err := http.Get(url)

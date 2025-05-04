@@ -5,9 +5,13 @@ import (
     "strings"
     "bufio"
 	"fmt"
+	"time"
 	"io"
+	"os"
 	"net/http"
+	"path/filepath"
     "github.com/intel-innersource/os.linux.tiberos.os-curation-tool/internal/provider"
+	"github.com/intel-innersource/os.linux.tiberos.os-curation-tool/internal/rpmverify"
 )
 
 // repoConfig holds .repo file values
@@ -31,7 +35,7 @@ func init() {
 }
 
 // Name returns the unique name of the provider
-func (p *AzureLinux3) Name() string { return "azurelinux3" }
+func (p *AzureLinux3) Name() string { return "AzureLinux3" }
 
 // Init will initialize the provider, fetching repo configuration
 func (p *AzureLinux3) Init() error {
@@ -51,13 +55,15 @@ func (p *AzureLinux3) Init() error {
 		return err
 	}
 	p.repo = cfg
-	logger.Infof("Initialized AzureLinux3 provider with repo section=%s name=%s baseurl=%s enabled=%v", p.repo.Section, p.repo.Name, p.repo.BaseURL, p.repo.Enabled)
+	logger.Infof("Initialized AzureLinux3 provider repo section=%s", p.repo.Section)
+    logger.Infof("name=%s", p.repo.Name)
+    logger.Infof("baseurl=%s", p.repo.BaseURL)
 	return nil
 }
 func (p *AzureLinux3) Packages() ([]provider.PackageInfo, error) {
     // get sugar logger from zap
 	logger := zap.L().Sugar()
-    logger.Infof("fetching packages information from repo at %s", p.repo.BaseURL)
+    logger.Infof("fetching packages from %s", p.repo.BaseURL)
     var pkgs []provider.PackageInfo
 
 	// directories are under BaseURL/Packages/A, BaseURL/Packages/B, ...
@@ -72,7 +78,59 @@ func (p *AzureLinux3) Packages() ([]provider.PackageInfo, error) {
 	return pkgs, nil
 }
 func (p *AzureLinux3) Validate(destDir string) error {
-    // shell out to rpm -Kv on each .rpm, check exit code
+    // get sugar logger from zap
+	logger := zap.L().Sugar()
+
+	// read the GPG key from the repo config
+	resp, err := http.Get(p.repo.GPGKey)
+    if err != nil {
+        return fmt.Errorf("fetch GPG key %s: %w", p.repo.GPGKey, err)
+    }
+    defer resp.Body.Close()
+
+    keyBytes, err := io.ReadAll(resp.Body)
+    if err != nil {
+        return fmt.Errorf("read GPG key body: %w", err)
+	}
+	logger.Infof("fetched GPG key \n%s", keyBytes)
+
+	// store in a temp file
+	tmp, err := os.CreateTemp("", "azurelinux-gpg-*.asc")
+    if err != nil {
+        return fmt.Errorf("create temp key file: %w", err)
+    }
+    defer func() {
+        tmp.Close()
+        os.Remove(tmp.Name())
+    }()
+
+    if _, err := tmp.Write(keyBytes); err != nil {
+        return fmt.Errorf("write key to temp file: %w", err)
+    }
+	
+	// get all RPMs in the destDir
+	rpmPattern := filepath.Join(destDir, "*.rpm")
+    rpmPaths, err := filepath.Glob(rpmPattern)
+    if err != nil {
+        return fmt.Errorf("glob %q: %w", rpmPattern, err)
+    }
+    if len(rpmPaths) == 0 {
+        logger.Warn("no RPMs found to verify")
+        return nil
+    }
+
+	start := time.Now()
+    results := rpmverify.VerifyAll(rpmPaths, tmp.Name(), 4)
+    logger.Infof("RPM verification took %s", time.Since(start))
+
+    // Check results
+    for _, r := range results {
+        if !r.OK {
+            return fmt.Errorf("RPM %s failed verification: %v", r.Path, r.Error)
+        }
+    }
+    logger.Info("all RPMs verified successfully")
+
     return nil
 }
 
