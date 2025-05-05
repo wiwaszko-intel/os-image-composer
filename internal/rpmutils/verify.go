@@ -1,4 +1,4 @@
-package rpmverify
+package rpmutils
 
 import (
     "fmt"

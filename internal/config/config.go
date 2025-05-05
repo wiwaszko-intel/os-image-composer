@@ -10,8 +10,8 @@ import (
 	"github.com/intel-innersource/os.linux.tiberos.os-curation-tool/internal/validate"
 )
 
-// Config represents your JSON schema.
-type Config struct {
+// BuildSpec represents your JSON schema.
+type BuildSpec struct {
     Distro   string   		`json:"distro"`
     Version  string  		`json:"version"`
     Arch     string  		`json:"arch"`
@@ -27,7 +27,7 @@ type KernelConfig struct {
     Cmdline string `json:"cmdline"`
 }
 
-func Load(path string) (*Config, error) {
+func Load(path string) (*BuildSpec, error) {
     logger := zap.L().Sugar()
 	
 	data, err := os.ReadFile(path)
@@ -39,13 +39,13 @@ func Load(path string) (*Config, error) {
         return nil, fmt.Errorf("validation error: %w", err)
     }
     // unmarshal into typed struct
-    var cfg Config
+    var bc BuildSpec
     dec := json.NewDecoder(bytes.NewReader(data))
     dec.DisallowUnknownFields()
-    if err := dec.Decode(&cfg); err != nil {
+    if err := dec.Decode(&bc); err != nil {
         return nil, fmt.Errorf("parsing config: %w", err)
     }
 
 	logger.Infof("loaded config: \n%s", string(data))
-    return &cfg, nil
+    return &bc, nil
 }

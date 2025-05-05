@@ -50,6 +50,23 @@ func FetchPackages(urls []string, destDir string, workers int) error {
 				// update description to current file
 				bar.Describe(name)
 
+				// ensure destination directory exists
+				if err := os.MkdirAll(destDir, 0755); err != nil {
+					logger.Errorf("failed to create dest dir %s: %v", destDir, err)
+					bar.Add(1)
+					continue
+				}
+
+				destPath := filepath.Join(destDir, name)
+				if fi, err := os.Stat(destPath); err == nil {
+					if fi.Size() > 0 {
+						logger.Infof("[INFO] skipping existing %s", name)
+						bar.Add(1)
+						continue
+					}
+					// file exists but zero size: re-download
+					logger.Warnf("[WARN] re-downloading zero-size %s", name)
+				}
 				err := func() error {
 					resp, err := http.Get(url)
 					if err != nil {
@@ -61,24 +78,18 @@ func FetchPackages(urls []string, destDir string, workers int) error {
 						return fmt.Errorf("bad status: %s", resp.Status)
 					}
 
-					// ensure destination directory exists
-					if err := os.MkdirAll(destDir, 0755); err != nil {
-						return err
-					}
-
-					destPath := filepath.Join(destDir, name)
 					out, err := os.Create(destPath)
 					if err != nil {
 						return err
 					}
 					defer out.Close()
 
-					// write body to file
 					if _, err := io.Copy(out, resp.Body); err != nil {
 						return err
 					}
 					return nil
 				}()
+				
 
 				if err != nil {
 					logger.Errorf("downloading %s failed: %v", url, err)

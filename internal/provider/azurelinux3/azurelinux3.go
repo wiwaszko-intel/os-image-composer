@@ -11,7 +11,8 @@ import (
 	"net/http"
 	"path/filepath"
     "github.com/intel-innersource/os.linux.tiberos.os-curation-tool/internal/provider"
-	"github.com/intel-innersource/os.linux.tiberos.os-curation-tool/internal/rpmverify"
+	"github.com/intel-innersource/os.linux.tiberos.os-curation-tool/internal/rpmutils"
+	"github.com/intel-innersource/os.linux.tiberos.os-curation-tool/internal/config"
 )
 
 // repoConfig holds .repo file values
@@ -28,6 +29,7 @@ type repoConfig struct {
 // AzureLinux3 implements provider.Provider
 type AzureLinux3 struct { 
 	repo repoConfig
+	spec *config.BuildSpec
 }
 
 func init() {
@@ -38,7 +40,7 @@ func init() {
 func (p *AzureLinux3) Name() string { return "AzureLinux3" }
 
 // Init will initialize the provider, fetching repo configuration
-func (p *AzureLinux3) Init() error {
+func (p *AzureLinux3) Init(spec *config.BuildSpec) error {
     
     logger := zap.L().Sugar()
     configURL := "https://packages.microsoft.com/azurelinux/3.0/prod/base/x86_64/config.repo"
@@ -58,6 +60,8 @@ func (p *AzureLinux3) Init() error {
 	logger.Infof("Initialized AzureLinux3 provider repo section=%s", p.repo.Section)
     logger.Infof("name=%s", p.repo.Name)
     logger.Infof("baseurl=%s", p.repo.BaseURL)
+
+	p.spec = spec
 	return nil
 }
 func (p *AzureLinux3) Packages() ([]provider.PackageInfo, error) {
@@ -120,7 +124,7 @@ func (p *AzureLinux3) Validate(destDir string) error {
     }
 
 	start := time.Now()
-    results := rpmverify.VerifyAll(rpmPaths, tmp.Name(), 4)
+    results := rpmutils.VerifyAll(rpmPaths, tmp.Name(), 4)
     logger.Infof("RPM verification took %s", time.Since(start))
 
     // Check results
@@ -133,6 +137,32 @@ func (p *AzureLinux3) Validate(destDir string) error {
 
     return nil
 }
+
+func (p *AzureLinux3) Resolve(destDir string) ([]string, error) {
+
+	// get sugar logger from zap
+	logger := zap.L().Sugar()
+
+	logger.Infof("resolving dependencies for %d RPMs", len(p.spec.Packages))
+
+	// Build an index of all RPMs on disk
+	idx, err := rpmutils.BuildIndex(destDir)
+	if err != nil {
+		return nil, fmt.Errorf("rpm index: %w", err)
+	}
+
+	// Prepare the list of full paths the user asked for:
+	var roots []string
+	for _, pkg := range p.spec.Packages { 
+	roots = append(roots, filepath.Join(destDir, pkg))
+	}
+
+	// Resolve all deps
+	resolved := rpmutils.ResolveDependencies(roots, idx)
+	logger.Infof("need total %d RPMs (including dependencies)", len(resolved))
+	return resolved, nil
+}
+
 
 // loadRepoConfig parses the repo configuration data
 func loadRepoConfig(r io.Reader) (repoConfig, error) {

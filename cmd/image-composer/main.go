@@ -15,7 +15,7 @@ import (
 // temporary placeholder for configuration
 // This should be replaced with a proper configuration struct
 const (
-	workers = 4
+	workers = 8
 	destDir = "./downloads"
 )
 
@@ -46,12 +46,12 @@ func main() {
 	}
 	configPath := os.Args[1]
 
-    cfg, err := config.Load(configPath)
+    bc, err := config.Load(configPath)
     if err != nil {
         sugar.Fatalf("loading config: %v", err)
     }
     
-    providerName := cfg.Distro + cfg.Version
+    providerName := bc.Distro + bc.Version
 
     // initialize provider
 	p, ok := provider.Get(providerName)
@@ -60,7 +60,7 @@ func main() {
 	}
 
     // initialize provider
-	if err := p.Init(); err != nil {
+	if err := p.Init(bc); err != nil {
 		sugar.Fatalf("provider init: %v", err)
 	}
 
@@ -91,4 +91,12 @@ func main() {
 	if err := p.Validate("./downloads"); err != nil {
 		sugar.Fatalf("verification failed: %v", err)
 	}
+	
+	// resolve all package dependencies
+	if resolved, err := p.Resolve("./downloads"); err != nil {
+		sugar.Fatalf("resolution failed: %v", err)
+	} else{
+		sugar.Infof("resolved packages: %v", resolved)
+	}
+
 }
