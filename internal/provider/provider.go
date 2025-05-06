@@ -1,5 +1,7 @@
 package provider
-
+import (
+    "github.com/intel-innersource/os.linux.tiberos.os-curation-tool/internal/config"
+)
 // PackageInfo holds everything you need to fetch + verify one artifact.
 type PackageInfo struct {
     Name     string // e.g. "abseil-cpp"
@@ -13,7 +15,7 @@ type Provider interface {
     Name() string
 
     // Init does any one-time setup: import GPG keys, register repos, etc.
-    Init() error
+    Init(spec *config.BuildSpec) error
 
     // Packages returns the list of PackageInfo for this image build.
     Packages() ([]PackageInfo, error)
@@ -21,6 +23,9 @@ type Provider interface {
     // Validate walks the destDir and verifies each downloaded file.
     // You can shell out to `rpm -Kv`, `dpkg-sig`, or use Go APIs here.
     Validate(destDir string) error
+
+    // Resolve walks your local cache in destDir and returns the full
+    Resolve(destDir string) ([]string, error)
 }
 
 var (

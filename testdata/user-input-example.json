@@ -1,4 +1,7 @@
 {
+    "distro": "AzureLinux",
+    "version": "3",
+    "arch": "x86_64",
     "packages": [
         "cloud-init",        
         "cloud-utils-growpart",
@@ -10,10 +13,10 @@
         "rsyslog",
         "sgx-backwards-compatibility",
         "WALinuxAgent",        
-        "wireless-regdb"        
+        "wireless-regdb",
+        "zstd-devel-1.5.5-2.azl3.x86_64.rpm"     
     ],
-    "immutability": ["false"],
-    "output": ["iso"],
-    "OSType" : ["EdgeMicrovisorToolkit"],
-    "kernel": ["6.12"]
+    "immutable": false,
+    "output": "iso",
+    "kernel": {"version":"6.12"}
 }
