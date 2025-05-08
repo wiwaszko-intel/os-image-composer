@@ -1,4 +1,4 @@
-# Introduction
+# Understanding Templates in Image-Composer
 
 Templates in Image-Composer provide a straightforward way to standardize and reuse image configurations. This document explains the template system and how to use it to streamline your image creation workflow.
 
