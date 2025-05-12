@@ -132,14 +132,14 @@ sequenceDiagram
     IC->>P: 3) Packages()
     P->>RR:    Parse primary.xml.gz   
     RR-->>P:   Return full PackageInfo list
+    P->>P:     Build in-memory index for allPackages
     P-->>IC:   All available packages
 
     IC->>IC: 4) MatchRequested(buildSpec.Packages, allPackages)
     IC-->>IC:   initialPkgList
 
-    IC->>P: 5) Resolve(initialPkgList)
-    P->>P:    Build in memory index from allPackages
-    P->>RPMU: (internal) Build remote in-memory index from allPackages
+    IC->>P: 5) Resolve(initialPkgList, allPackages)
+    P->>P:     Resolve all direct and indirect dependencies
     p-->>IC:  requiredPkgList
     
     IC->>P: 6) FetchPackages(requiredPkgList)

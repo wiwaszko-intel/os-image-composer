@@ -84,6 +84,7 @@ syntax. When building an image from a template, you can provide values for these
 variables.
 
 See also:
+
 - [Build Specification File](./image-composer-cli-specification.md#build-specification-file)
 for the complete structure of build specifications
 
