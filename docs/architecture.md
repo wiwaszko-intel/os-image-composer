@@ -134,4 +134,3 @@ The following table captures the SW entities and description of their functions.
 | 1.| Development Ownership of each component  | Open |  |
 | 2.| JSON vs YML file for capturing the OS Image Configuration  | Open |  |
 | 3.| User Facing CLI Commands and user interface  | Open |  |
-

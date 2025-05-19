@@ -1,15 +1,22 @@
 # Understanding Templates in Image-Composer
 
-Templates in Image-Composer provide a straightforward way to standardize and reuse image configurations. This document explains the template system and how to use it to streamline your image creation workflow.
+Templates in Image-Composer provide a straightforward way to standardize and
+reuse image configurations. This document explains the template system and how
+to use it to streamline your image creation workflow.
 
 ## Related Documentation
-- [Understanding the Build Process](./image-composer-build-process.md) - Details on the five-stage build pipeline
-- [Understanding Caching in Image-Composer](./image-composer-caching.md) - Information about package and image caching systems
-- [Image-Composer CLI Specification](./image-composer-cli-specification.md) - Complete command-line reference
+
+- [Understanding the Build Process](./image-composer-build-process.md) - Details
+on the five-stage build pipeline
+- [Understanding Caching in Image-Composer](./image-composer-caching.md) -
+Information about package and image caching systems
+- [Image-Composer CLI Specification](./image-composer-cli-specification.md) -
+Complete command-line reference
 
 ## What Are Templates?
 
-Templates are pre-defined build specifications that serve as a foundation for building OS images. They allow you to:
+Templates are pre-defined build specifications that serve as a foundation for
+building OS images. They allow you to:
 
 - Create standardized baseline configurations
 - Ensure consistency across multiple images
@@ -17,15 +24,20 @@ Templates are pre-defined build specifications that serve as a foundation for bu
 - Share common configurations with your team
 
 See also:
-- [Common Build Patterns](./image-composer-build-process.md#common-build-patterns) for patterns that work well as templates
+
+- [Common Build Patterns](./image-composer-build-process.md#common-build-patterns)
+for patterns that work well as templates
 
 ## How Templates Work
 
-Templates are simply YAML files with a structure similar to regular build specifications, but with added variable placeholders that can be customized when used.
+Templates are simply YAML files with a structure similar to regular build
+specifications, but with added variable placeholders that can be customized when
+used.
 
 ### Template Structure
 
-A template includes standard build specification sections with variables where customization is needed:
+A template includes standard build specification sections with variables where
+customization is needed:
 
 ```yaml
 # Example template: ubuntu-server.yml
@@ -67,10 +79,14 @@ customizations:
 
 ### Variable Substitution
 
-Templates support simple variable substitution using the `${variable_name}` syntax. When building an image from a template, you can provide values for these variables.
+Templates support simple variable substitution using the `${variable_name}`
+syntax. When building an image from a template, you can provide values for these
+variables.
 
 See also:
-- [Build Specification File](./image-composer-cli-specification.md#build-specification-file) for the complete structure of build specifications
+
+- [Build Specification File](./image-composer-cli-specification.md#build-specification-file)
+for the complete structure of build specifications
 
 ## Managing Templates via CLI
 
@@ -112,7 +128,9 @@ image-composer template import ./ubuntu-server-template.yml
 ```
 
 See also:
-- [Template Command](./image-composer-cli-specification.md#template-command) for all template management commands
+
+- [Template Command](./image-composer-cli-specification.md#template-command) for
+all template management commands
 
 ## Using Templates to Build Images
 
@@ -123,7 +141,8 @@ See also:
 image-composer build --template ubuntu-server my-output-image.yml
 
 # Build with variable overrides
-image-composer build --template ubuntu-server --set "ubuntu_version=22.04" --set "hostname=web-01" my-output-image.yml
+image-composer build --template ubuntu-server --set "ubuntu_version=22.04" --set
+"hostname=web-01" my-output-image.yml
 ```
 
 ### Variable Definition Files
@@ -140,23 +159,28 @@ enable_firewall: true
 Then use them with:
 
 ```bash
-image-composer build --template ubuntu-server --variables variables.yml my-output-image.yml
+image-composer build --template ubuntu-server --variables variables.yml
+my-output-image.yml
 ```
 
 ### Generating Spec Files from Templates
 
-You can generate a specification file from a template to review or modify before building:
+You can generate a specification file from a template to review or modify before
+building:
 
 ```bash
 # Generate spec file from template
 image-composer template render ubuntu-server --output my-spec.yml
 
 # Generate with variable overrides
-image-composer template render ubuntu-server --set "ubuntu_version=22.04" --output my-spec.yml
+image-composer template render ubuntu-server --set "ubuntu_version=22.04"
+--output my-spec.yml
 ```
 
 See also:
-- [Build Command](./image-composer-cli-specification.md#build-command) for all build options with templates
+
+- [Build Command](./image-composer-cli-specification.md#build-command) for all
+build options with templates
 
 ## Template Storage
 
@@ -191,7 +215,9 @@ variables:
 ```
 
 See also:
-- [Build Stages in Detail](./image-composer-build-process.md#build-stages-in-detail) for how variables affect each build stage
+
+- [Build Stages in Detail](./image-composer-build-process.md#build-stages-in-detail)
+for how variables affect each build stage
 
 ## Template Examples
 
@@ -270,19 +296,23 @@ customizations:
 ```
 
 See also:
-- [Configuration Stage](./image-composer-build-process.md#4-configuration-stage) for details on customizations that can be applied
+
+- [Configuration Stage](./image-composer-build-process.md#4-configuration-stage)
+for details on customizations that can be applied
 
 ## Best Practices
 
 ### Template Organization
 
-1. **Keep Templates Simple**: Focus on common configurations that are likely to be reused
+1. **Keep Templates Simple**: Focus on common configurations that are likely to
+be reused
 2. **Use Descriptive Names**: Name templates according to their purpose
 3. **Document Variables**: Provide clear descriptions for all variables
 
 ### Template Design
 
-1. **Parameterize Wisely**: Make variables out of settings that are likely to change
+1. **Parameterize Wisely**: Make variables out of settings that are likely to
+change
 2. **Provide Defaults**: Always include sensible default values for variables
 3. **Minimize Complexity**: Keep templates straightforward and focused
 
@@ -293,14 +323,19 @@ See also:
 3. **Standardization**: Use templates to enforce organizational standards
 
 See also:
-- [Build Performance Optimization](./image-composer-build-process.md#build-performance-optimization) for how templates can improve build efficiency
+- [Build Performance Optimization](./image-composer-build-process.md#build-performance-optimization)
+for how templates can improve build efficiency
 
 ## Conclusion
 
-Templates in Image-Composer provide a straightforward way to standardize image creation and reduce repetitive work. By defining common configurations once and reusing them with different variables, you can:
+Templates in Image-Composer provide a straightforward way to standardize image
+creation and reduce repetitive work. By defining common configurations once and
+reusing them with different variables, you can:
 
 1. **Save Time**: Avoid recreating similar configurations
 2. **Ensure Consistency**: Maintain standardized environments
-3. **Simplify Onboarding**: Make it easier for new team members to create proper images
+3. **Simplify Onboarding**: Make it easier for new team members to create proper
+images
 
-The template system is designed to be simple yet effective, focusing on practical reuse rather than complex inheritance or versioning schemes.
+The template system is designed to be simple yet effective, focusing on
+practical reuse rather than complex inheritance or versioning schemes.
