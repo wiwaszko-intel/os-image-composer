@@ -1,8 +1,11 @@
 package elxr12
 
 import (
+	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/intel-innersource/os.linux.tiberos.os-curation-tool/internal/config"
 	"github.com/intel-innersource/os.linux.tiberos.os-curation-tool/internal/debutils"
@@ -18,7 +21,7 @@ const (
 	repodata   = ""
 )
 
-// repoConfig holds .repo file values
+// repoConfig hold repo related info
 type repoConfig struct {
 	Section      string // raw section header
 	Name         string // human-readable name from name=
@@ -30,12 +33,18 @@ type repoConfig struct {
 	GPGKey       string
 }
 
+type pkgChecksum struct {
+	Name     string
+	Checksum string
+}
+
 // eLxr12 implements provider.Provider
 type eLxr12 struct {
-	repoURL string
-	repoCfg repoConfig
-	gzHref  string
-	spec    *config.BuildSpec
+	repoURL     string
+	repoCfg     repoConfig
+	pkgChecksum []pkgChecksum
+	gzHref      string
+	spec        *config.BuildSpec
 }
 
 func init() {
@@ -95,7 +104,64 @@ func (p *eLxr12) Packages() ([]provider.PackageInfo, error) {
 // Validate verifies the downloaded files
 func (p *eLxr12) Validate(destDir string) error {
 	logger := zap.L().Sugar()
-	logger.Infof("Validate() called with destDir=%s - Placeholder: This function will be implemented by the respective owner.", destDir)
+
+	// read the GPG key from the repo config
+	// resp, err := http.Get(p.repoCfg.GPGKey)
+	// if err != nil {
+	// 	return fmt.Errorf("fetch GPG key %s: %w", p.repoCfg.GPGKey, err)
+	// }
+	// defer resp.Body.Close()
+
+	// keyBytes, err := io.ReadAll(resp.Body)
+	// if err != nil {
+	// 	return fmt.Errorf("read GPG key body: %w", err)
+	// }
+	// logger.Infof("fetched GPG key (%d)", len(keyBytes))
+	// logger.Debugf("GPG key: %s\n", keyBytes)
+
+	// // store in a temp file
+	// tmp, err := os.CreateTemp("", "azurelinux-gpg-*.asc")
+	// if err != nil {
+	// 	return fmt.Errorf("create temp key file: %w", err)
+	// }
+	// defer func() {
+	// 	tmp.Close()
+	// 	os.Remove(tmp.Name())
+	// }()
+
+	// if _, err := tmp.Write(keyBytes); err != nil {
+	// 	return fmt.Errorf("write key to temp file: %w", err)
+	// }
+
+	// get all DEBs in the destDir
+	debPattern := filepath.Join(destDir, "*.deb")
+	debPaths, err := filepath.Glob(debPattern)
+	if err != nil {
+		return fmt.Errorf("glob %q: %w", debPattern, err)
+	}
+	if len(debPaths) == 0 {
+		logger.Warn("no DEBs found to verify")
+		return nil
+	}
+
+	// Create a simple dictionary (map) to store all records from p.pkgChecksum
+	checksumMap := make(map[string]string)
+	for _, pc := range p.pkgChecksum {
+		checksumMap[pc.Name] = pc.Checksum
+	}
+
+	start := time.Now()
+	results := debutils.VerifyAll(debPaths, checksumMap, p.repoCfg.GPGKey, 4)
+	logger.Infof("RPM verification took %s", time.Since(start))
+
+	// Check results
+	for _, r := range results {
+		if !r.OK {
+			return fmt.Errorf("deb %s failed verification: %v", r.Path, r.Error)
+		}
+	}
+	logger.Info("all DEBs verified successfully")
+
 	return nil
 }
 
@@ -115,6 +181,14 @@ func (p *eLxr12) Resolve(req []provider.PackageInfo, all []provider.PackageInfo)
 
 	for _, pkg := range needed {
 		logger.Debugf("-> %s", pkg.Name)
+	}
+
+	// Adding needed packages to the pkgChecksum list
+	for _, pkg := range needed {
+		p.pkgChecksum = append(p.pkgChecksum, pkgChecksum{
+			Name:     pkg.Name,
+			Checksum: pkg.Checksum,
+		})
 	}
 
 	return needed, nil
