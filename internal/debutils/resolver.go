@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 
+	"go.uber.org/zap"
+
 	"github.com/intel-innersource/os.linux.tiberos.os-curation-tool/internal/pkgfetcher"
 	"github.com/intel-innersource/os.linux.tiberos.os-curation-tool/internal/provider"
 )
@@ -95,6 +97,7 @@ func ResolvePackageInfos(requested []provider.PackageInfo, all []provider.Packag
 
 // ParsePrimary parses the Packages.gz file from gzHref.
 func ParsePrimary(baseURL, gzHref string) ([]provider.PackageInfo, error) {
+	logger := zap.L().Sugar()
 
 	// Download the debian repo .gz file with all components meta data
 	pkgMetaDir := "./builds"
@@ -102,7 +105,10 @@ func ParsePrimary(baseURL, gzHref string) ([]provider.PackageInfo, error) {
 	if dir := os.DirFS(PkgMetaFile); dir != nil {
 		pkgMetaDir = filepath.Dir(PkgMetaFile)
 	}
-	pkgfetcher.FetchPackages([]string{gzHref}, pkgMetaDir, 1)
+	err := pkgfetcher.FetchPackages([]string{gzHref}, pkgMetaDir, 1)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch packages: %v", err)
+	}
 
 	pkgMetaFileNoExt := filepath.Join(filepath.Dir(PkgMetaFile), strings.TrimSuffix(filepath.Base(PkgMetaFile), filepath.Ext(PkgMetaFile)))
 
@@ -110,7 +116,7 @@ func ParsePrimary(baseURL, gzHref string) ([]provider.PackageInfo, error) {
 	if err != nil {
 		return []provider.PackageInfo{}, err
 	}
-	fmt.Printf("decompressed files: %v\n", files)
+	logger.Infof("decompressed files: %v", files)
 
 	// Parse the decompressed file
 	f, err := os.Open(files[0])
