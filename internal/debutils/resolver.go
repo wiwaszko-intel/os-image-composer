@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/intel-innersource/os.linux.tiberos.os-curation-tool/internal/pkgfetcher"
 	"github.com/intel-innersource/os.linux.tiberos.os-curation-tool/internal/provider"
 )
 
@@ -78,26 +80,23 @@ func ResolvePackageInfos(requested []provider.PackageInfo, all []provider.Packag
 
 	orgCnt := len(requested)
 	finalCnt := len(result)
-	fmt.Printf("yockgen: requested %d packages, resolved to %d packages\n", orgCnt, finalCnt)
+	fmt.Printf("requested %d packages, resolved to %d packages\n", orgCnt, finalCnt)
 
 	return result, nil
 }
 
-// ParsePrimary parses the repodata/primary.xml.gz file from a given base URL.
+// ParsePrimary parses the Packages.gz file from gzHref.
 func ParsePrimary(baseURL, gzHref string) ([]provider.PackageInfo, error) {
 
 	// Download the debian repo .gz file with all components meta data
 	PkgMetaFile := "/tmp/Packages.gz"
-	zipFiles, err := Download(gzHref, PkgMetaFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to download repo file: %v", err)
+	pkgMetaDir := "./"
+	if dir := os.DirFS(PkgMetaFile); dir != nil {
+		pkgMetaDir = filepath.Dir(PkgMetaFile)
 	}
+	pkgfetcher.FetchPackages([]string{gzHref}, pkgMetaDir, 1)
 
-	// Decompress the .gz file and store the decompressed file in the same location
-	if len(zipFiles) == 0 {
-		return []provider.PackageInfo{}, fmt.Errorf("no files downloaded from repo URL: %s", gzHref)
-	}
-	files, err := Decompress(zipFiles[0])
+	files, err := Decompress(PkgMetaFile)
 	if err != nil {
 		return []provider.PackageInfo{}, err
 	}
@@ -168,22 +167,6 @@ func ParsePrimary(baseURL, gzHref string) ([]provider.PackageInfo, error) {
 	if pkg.Name != "" {
 		pkgs = append(pkgs, pkg)
 	}
-
-	// Store the result in /tmp/Packages.trim
-	// outFile := "/tmp/Packages.trim"
-	// out, err := os.Create(outFile)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to create output file: %v", err)
-	// }
-	// defer out.Close()
-
-	// for _, pkg := range pkgs {
-	// 	_, err := fmt.Fprintf(out, "Name: %s\nRequires: %s\nURL: %s\nChecksum: %s\n\n",
-	// 		pkg.Name, pkg.Requires, pkg.URL, pkg.Checksum)
-	// 	if err != nil {
-	// 		return nil, fmt.Errorf("failed to write to output file: %v", err)
-	// 	}
-	// }
 
 	return pkgs, nil
 }

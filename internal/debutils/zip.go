@@ -4,7 +4,6 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 )
 
@@ -35,31 +34,4 @@ func Decompress(inFile string) ([]string, error) {
 	}
 
 	return []string{decompressedFile}, nil
-}
-
-func Download(repoURL string, outFile string) ([]string, error) {
-
-	resp, err := http.Get(repoURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to download repo config: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("unexpected HTTP status: %s", resp.Status)
-	}
-
-	// Store the .gz file locally
-	out, err := os.Create(outFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create file: %v", err)
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write to file: %v", err)
-	}
-
-	return []string{outFile}, nil
 }
