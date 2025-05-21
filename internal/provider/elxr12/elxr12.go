@@ -226,12 +226,12 @@ func loadRepoConfig(repoUrl string) (repoConfig, error) {
 
 	//example direct download: wget https://deb.debian.org/debian/pool/main/0/0ad/0ad_0.0.26-3_amd64.deb
 	rc.CfgURL = repoUrl
-	rc.PkgPrefixUrl = "https://deb.debian.org/debian/"
-	rc.Name = "Debian Bookworm Main"
+	rc.PkgPrefixUrl = "https://mirror.elxr.dev/elxr/"
+	rc.Name = "Wind River eLxr 12"
 	rc.GPGCheck = true
 	rc.RepoGPGCheck = true
 	rc.Enabled = true
-	rc.GPGKey = "https://ftp-master.debian.org/keys/release-12.asc"
+	rc.GPGKey = "https://mirror.elxr.dev/elxr/public.gpg"
 	rc.Section = "main"
 
 	logger.Infof("repo config: %+v", rc)
