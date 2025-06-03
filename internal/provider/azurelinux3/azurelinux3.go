@@ -37,12 +37,10 @@ type repoConfig struct {
 
 // AzureLinux3 implements provider.Provider
 type AzureLinux3 struct {
-	repoURL string
-	repoCfg repoConfig
-	//repomd		string
-	//primaryURL	string
-	gzHref string
-	spec   *config.BuildSpec
+	repoURL  string
+	repoCfg  repoConfig
+	gzHref   string
+	template *config.ImageTemplate
 }
 
 func init() {
@@ -53,10 +51,9 @@ func init() {
 func (p *AzureLinux3) Name() string { return "AzureLinux3" }
 
 // Init will initialize the provider, fetching repo configuration
-func (p *AzureLinux3) Init(spec *config.BuildSpec) error {
-
+func (p *AzureLinux3) Init(template *config.ImageTemplate) error {
 	logger := utils.Logger()
-	p.repoURL = baseURL + spec.Arch + "/" + configName
+	p.repoURL = baseURL + template.Target.Arch + "/" + configName
 
 	resp, err := http.Get(p.repoURL)
 	if err != nil {
@@ -71,14 +68,15 @@ func (p *AzureLinux3) Init(spec *config.BuildSpec) error {
 		return err
 	}
 
-	repoDataURL := baseURL + spec.Arch + "/" + repodata
+	repoDataURL := baseURL + template.Target.Arch + "/" + repodata
 	href, err := fetchPrimaryURL(repoDataURL)
 	if err != nil {
 		logger.Errorf("fetch primary.xml.gz failed: %v", err)
+		return err
 	}
 
 	p.repoCfg = cfg
-	p.spec = spec
+	p.template = template
 	p.gzHref = href
 
 	logger.Infof("initialized AzureLinux3 provider repo section=%s", cfg.Section)
@@ -87,6 +85,7 @@ func (p *AzureLinux3) Init(spec *config.BuildSpec) error {
 	logger.Infof("primary.xml.gz=%s", p.gzHref)
 	return nil
 }
+
 func (p *AzureLinux3) Packages() ([]provider.PackageInfo, error) {
 	logger := utils.Logger()
 	logger.Infof("fetching packages from %s", p.repoCfg.URL)
@@ -94,6 +93,7 @@ func (p *AzureLinux3) Packages() ([]provider.PackageInfo, error) {
 	packages, err := rpmutils.ParsePrimary(p.repoCfg.URL, p.gzHref)
 	if err != nil {
 		logger.Errorf("parsing primary.xml.gz failed: %v", err)
+		return nil, err
 	}
 
 	logger.Infof("found %d packages in AzureLinux3 repo", len(packages))
@@ -111,12 +111,12 @@ func (p *AzureLinux3) MatchRequested(requests []string, all []provider.PackageIn
 				candidates = append(candidates, pi)
 				break
 			}
-			// 2) prefix by want-version (“acl-”)
+			// 2) prefix by want-version ("acl-")
 			if strings.HasPrefix(pi.Name, want+"-") {
 				candidates = append(candidates, pi)
 				continue
 			}
-			// 3) prefix by want.release (“acl-2.3.1-2.”)
+			// 3) prefix by want.release ("acl-2.3.1-2.")
 			if strings.HasPrefix(pi.Name, want+".") {
 				candidates = append(candidates, pi)
 			}
@@ -130,7 +130,7 @@ func (p *AzureLinux3) MatchRequested(requests []string, all []provider.PackageIn
 			out = append(out, candidates[0])
 			continue
 		}
-		// Otherwise pick the “highest” by lex sort
+		// Otherwise pick the "highest" by lex sort
 		sort.Slice(candidates, func(i, j int) bool {
 			return candidates[i].Name > candidates[j].Name
 		})
@@ -138,6 +138,7 @@ func (p *AzureLinux3) MatchRequested(requests []string, all []provider.PackageIn
 	}
 	return out, nil
 }
+
 func (p *AzureLinux3) Validate(destDir string) error {
 	logger := utils.Logger()
 
@@ -152,7 +153,7 @@ func (p *AzureLinux3) Validate(destDir string) error {
 	if err != nil {
 		return fmt.Errorf("read GPG key body: %w", err)
 	}
-	logger.Infof("fetched GPG key (%d)", len(keyBytes))
+	logger.Infof("fetched GPG key (%d bytes)", len(keyBytes))
 	logger.Debugf("GPG key: %s\n", keyBytes)
 
 	// store in a temp file
@@ -196,7 +197,6 @@ func (p *AzureLinux3) Validate(destDir string) error {
 }
 
 func (p *AzureLinux3) Resolve(req []provider.PackageInfo, all []provider.PackageInfo) ([]provider.PackageInfo, error) {
-
 	logger := utils.Logger()
 
 	logger.Infof("resolving dependencies for %d RPMs", len(req))

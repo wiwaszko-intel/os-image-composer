@@ -19,7 +19,7 @@ work_dir: "/tmp/image-composer"
 # Cleaned up after successful builds
 # Requires substantial space during builds (2-10GB typical)
 
-temp_dir: ""
+temp_dir: "/tmp"
 # Temporary directory for short-lived files like GPG keys and metadata parsing
 # Empty value uses system default (/tmp on Linux, %TEMP% on Windows)
 # Used for: GPG verification files, decompressed metadata, parsing operations

@@ -10,7 +10,32 @@ from different Operating System Vendors (OSVs).
 The ICT is developed in `golang` and is initially targeting to build custom
 images for [EMT](https://github.com/open-edge-platform/edge-microvisor-toolkit)
 (Edge Microvisor Toolkit), [Azure Linux](https://github.com/microsoft/azurelinux)
-and WindRiver Linux.
+and Wind River eLxr.
+
+## Documentation
+
+- [📖 CLI Specification](./image-composer-cli-specification.md) - Complete command-line reference and usage guide
+- [🔧 Build Process](./image-composer-build-process.md) - Understanding the five-stage build pipeline
+- [⚡ Caching](./image-composer-caching.md) - Package and image caching for performance
+- [📋 Templates](./image-composer-templates.md) - Creating and using reusable image templates
+
+## Quick Start
+
+```bash
+# Build the tool
+go build ./cmd/image-composer
+
+# Or run directly
+go run ./cmd/image-composer --help
+
+# Build an image from template
+./image-composer build image-templates/azl3-x86_64-edge-raw.yml
+
+# Validate a template
+./image-composer validate image-templates/azl3-x86_64-edge-raw.yml
+```
+
+For complete usage instructions, see the [CLI Specification](./image-composer-cli-specification.md).
 
 ## Get Started
 
@@ -46,7 +71,7 @@ The Earthly build automatically includes:
 
 ### Global Configuration
 
-Image Composer Tool supports global configuration files to set tool-level parameters that apply across all image builds. Image-specific parameters should still be defined in the JSON specification files.
+Image Composer Tool supports global configuration files to set tool-level parameters that apply across all image builds. Image-specific parameters are defined in YAML image template files.
 
 #### Configuration File Locations
 
@@ -86,7 +111,7 @@ logging:
 ./image-composer config show
 
 # Use specific configuration file
-./image-composer --config /path/to/config.yaml build spec.json
+./image-composer --config /path/to/config.yaml build template.yml
 ```
 
 ### Usage
@@ -97,14 +122,14 @@ The Image Composer Tool uses a command-line interface with various commands:
 # Show help
 ./image-composer --help
 
-# Build command with spec file as positional argument
-./image-composer build testdata/valid.json
+# Build command with template file as positional argument
+./image-composer build image-templates/azl3-x86_64-edge-raw.yml
 
 # Override config settings with command-line flags
-./image-composer build --workers 16 --cache-dir /tmp/cache testdata/valid.json
+./image-composer build --workers 16 --cache-dir /tmp/cache image-templates/azl3-x86_64-edge-raw.yml
 
-# Validate a spec file against the schema
-./image-composer validate testdata/valid.json
+# Validate a template file against the schema
+./image-composer validate image-templates/azl3-x86_64-edge-raw.yml
 
 # Display version information
 ./image-composer version
@@ -119,10 +144,10 @@ The Image Composer Tool provides the following commands:
 
 #### build
 
-Builds a Linux distribution image based on the specified spec file:
+Builds a Linux distribution image based on the specified image template file:
 
 ```bash
-./image-composer build [flags] SPEC_FILE
+./image-composer build [flags] TEMPLATE_FILE
 ```
 
 Flags:
@@ -138,7 +163,7 @@ Flags:
 Example:
 
 ```bash
-./image-composer build --workers 12 --cache-dir ./package-cache testdata/valid.json
+./image-composer build --workers 12 --cache-dir ./package-cache image-templates/azl3-x86_64-edge-raw.yml
 ```
 
 #### config
@@ -155,13 +180,13 @@ Manages global configuration:
 
 #### validate
 
-Validates a JSON spec file against the schema without building an image:
+Validates a YAML template file against the schema without building an image:
 
 ```bash
-./image-composer validate SPEC_FILE
+./image-composer validate TEMPLATE_FILE
 ```
 
-This is useful for verifying configurations before starting the potentially time-consuming build process.
+This is useful for verifying template configurations before starting the potentially time-consuming build process.
 
 #### version
 
@@ -220,99 +245,102 @@ image-composer build --[TAB]
 
 See the [Shell Completion](#shell-completion) section for more details.
 
-### User Input JSON
+### Image Template Format
 
-This section provides a detailed explanation of the JSON input structure used to configure and build a Linux-based operating system. The JSON format allows users to define key parameters such as the operating system distribution, version, architecture, software packages, output format, immutability, and kernel configuration. By customizing these parameters, users can create tailored Linux OS builds, including distributions like Ubuntu, Wind River, and Edge Microvisor Toolkits.
+Image templates are written in YAML format and define the requirements for building a specific OS image. The template structure allows users to define key parameters such as the operating system distribution, version, architecture, software packages, output format, and kernel configuration.
+
+```yaml
+image:
+  name: azl3-x86_64-edge
+  version: "1.0.0"
+
+target:
+  os: azure-linux    # Target OS name
+  dist: azl3          # Target OS distribution
+  arch: x86_64        # Target OS architecture
+  imageType: raw      # Image type: raw, iso, img, vhd
+
+systemConfigs:
+  - name: edge
+    description: Default configuration for edge image
+    
+    # Package Configuration
+    packages:
+      # Additional packages beyond the base system
+      - openssh-server      # Remote access
+      - docker-ce          # Container runtime
+      - vim                # Text editor
+      - curl               # HTTP client
+      - wget               # File downloader
+
+    # Kernel Configuration
+    kernel:
+      version: "6.12"
+      cmdline: "quiet splash"
+```
+
+#### Key Components
+
+##### 1. `image`
+
+**Description:** Basic image identification and metadata.
+- `name`: Name of the resulting image
+- `version`: Version for tracking and naming
+
+##### 2. `target`
+
+**Description:** Defines the target OS and image configuration.
+- `os`: Target operating system (`azure-linux`, `emt`, `elxr`)
+- `dist`: Distribution identifier (`azl3`, `emt3`, `elxr12`)
+- `arch`: Target architecture (`x86_64`, `aarch64`)
+- `imageType`: Output format (`raw`, `iso`, `img`, `vhd`)
+
+##### 3. `systemConfigs`
+
+**Description:** Array of system configurations that define what goes into the image.
+- `name`: Configuration name
+- `description`: Human-readable description
+- `packages`: List of packages to include in the OS build
+- `kernel`: Kernel configuration with version and command-line parameters
+
+#### Supported Distributions
+
+| OS | Distribution | Version | Provider |
+|----|-------------|---------|----------|
+| azure-linux | azl3 | 3 | AzureLinux3 |
+| emt | emt3 | 3.0 | EMT3.0 |
+| elxr | elxr12 | 12 | eLxr12 |
+
+#### Package Examples
+
+Common packages that can be included:
+- `cloud-init`: Used for initializing cloud instances
+- `python3`: The Python 3 programming language interpreter
+- `rsyslog`: A logging system for Linux
+- `openssh-server`: SSH server for remote access
+- `docker-ce`: Docker container runtime
+
+The image template format is validated against a JSON schema to ensure correctness before building.
+
+### Legacy JSON Format
+
+**Note:** The tool previously supported JSON build specifications but now exclusively uses YAML image templates. The JSON format has been removed to simplify the architecture and improve maintainability.
+
+For reference, the old JSON format looked like this:
 
 ```json
 {
     "distro": "eLxr",
     "version": "12",
     "arch": "x86_64",
-    "packages": [
-        "cloud-init",        
-        "cloud-utils-growpart",
-        "dhcpcd",        
-        "grubby",
-        "hyperv-daemons",
-        "netplan",        
-        "python3",
-        "rsyslog",
-        "sgx-backwards-compatibility",
-        "WALinuxAgent",        
-        "wireless-regdb"        
-    ],
+    "packages": ["cloud-init", "rsyslog"],
     "immutable": true,
     "output": "iso",
-    "kernel": {
-      "version": "5.10.0",
-      "cmdline": "quiet splash"
-    }
+    "kernel": { "version": "5.10.0", "cmdline": "quiet splash" }
 }
 ```
 
-#### Key Components
-
-##### 1. `distro`
-
-**Description:** Specifies the target Linux distribution to be built.  
-**Examples:**
-
-- `AzureLinux`
-- `eLxr`
-
-##### 2. `version`
-
-**Description:** Defines the version of the target operating system.  
-**Example:** `"12"`
-
-##### 3. `arch`
-
-**Description:** Specifies the architecture of the target operating system.  
-**Examples:**
-
-- `x86_64`
-- `arm64`
-
-##### 4. `packages`
-
-**Description:** A list of software packages to be included in the OS build. These packages will be pre-installed in the resulting image.  
-**Examples:**
-
-- `cloud-init`: Used for initializing cloud instances.
-- `python3`: The Python 3 programming language interpreter.
-- `rsyslog`: A logging system for Linux.
-
-##### 5. `immutable`
-
-**Description:** Indicates whether the operating system should be immutable.  
-**Values:**
-
-- `true`: The OS is immutable, meaning it cannot be modified after creation.
-- `false`: The OS is mutable, allowing modifications after creation.
-
-##### 6. `output`
-
-**Description:** Specifies the format of the output build.  
-**Values:**
-
-- `iso`: The OS will be built as an ISO file, suitable for installation or booting.
-- `raw`: The OS will be built as a raw disk image, useful for direct disk writing.
-- `vhd`: The OS will be built as a VHD (Virtual Hard Disk) file, commonly used in virtual environments.
-
-##### 7. `kernel`
-
-**Description:** Defines the kernel version and allows customization of the kernel command line.  
-**Attributes:**
-
-- `version`: Specifies the kernel version to be used.  
-  **Example:** `"5.10.0"`
-- `cmdline`: Provides additional kernel command-line parameters.  
-  **Example:** `"quiet splash"`
-
-Run the sample JSON files against the defined [schema](schema/os-image-composer.schema.json).
-There are two sample JSON files, one [valid](/testdata/valid.json) and one with
-[invalid](testdata/invalid.json) content.
+This has been replaced with the more flexible and intuitive YAML template format shown above.
 
 ### Shell Completion
 
@@ -385,16 +413,100 @@ build      completion  config     help       validate    version
 ./image-composer build --<TAB>
 --cache-dir  --config    --help       --log-level  --verbose    --work-dir   --workers
 
-# Tab-complete JSON files for spec file argument
+# Tab-complete YAML files for template file argument
 ./image-composer build <TAB>
-# Will show JSON files in the current directory
+# Will show YAML files in the current directory
 ```
 
-The tool is specifically configured to suggest JSON files when completing the spec file argument for the build and validate commands.
+The tool is specifically configured to suggest YAML files when completing the template file argument for the build and validate commands.
+
+## Template Examples
+
+### Minimal Edge Device
+
+```yaml
+image:
+  name: minimal-edge
+  version: "1.0.0"
+
+target:
+  os: azure-linux
+  dist: azl3
+  arch: x86_64
+  imageType: raw
+
+systemConfigs:
+  - name: minimal
+    description: Minimal edge device configuration
+    packages:
+      - openssh-server
+      - ca-certificates
+    kernel:
+      version: "6.12"
+      cmdline: "quiet"
+```
+
+### Development Environment
+
+```yaml
+image:
+  name: dev-environment
+  version: "1.0.0"
+
+target:
+  os: azure-linux
+  dist: azl3
+  arch: x86_64
+  imageType: raw
+
+systemConfigs:
+  - name: development
+    description: Development environment with tools
+    packages:
+      - openssh-server
+      - git
+      - docker-ce
+      - vim
+      - curl
+      - wget
+      - python3
+    kernel:
+      version: "6.12"
+      cmdline: "quiet splash"
+```
+
+### Edge Microvisor Toolkit
+
+```yaml
+image:
+  name: emt-edge-device
+  version: "1.0.0"
+
+target:
+  os: emt
+  dist: emt3
+  arch: x86_64
+  imageType: raw
+
+systemConfigs:
+  - name: edge
+    description: Edge Microvisor Toolkit configuration
+    packages:
+      - openssh-server
+      - docker-ce
+      - edge-runtime
+      - telemetry-agent
+    kernel:
+      version: "6.12"
+      cmdline: "quiet splash systemd.unified_cgroup_hierarchy=0"
+```
 
 ## Getting Help
 
-Run `./image-composer --help` to see all available commands and options.
+- **Quick Reference**: Run `./image-composer --help` to see all available commands and options
+- **Complete Guide**: See the [CLI Specification](./image-composer-cli-specification.md) for detailed documentation
+- **Examples**: Check the [template examples](#template-examples) section below
+- **Troubleshooting**: Refer to the [Build Process documentation](./image-composer-build-process.md#troubleshooting-build-issues)
 
 ## Contributing
 

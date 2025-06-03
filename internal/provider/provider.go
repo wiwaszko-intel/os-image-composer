@@ -16,11 +16,11 @@ type PackageInfo struct {
 
 // Provider is the interface every OSV plugin must implement.
 type Provider interface {
-	// Name is a unique ID, e.g. "azurelinux3" or "emt3".
+	// Name is a unique ID, e.g. "AzureLinux3" or "EMT3.0".
 	Name() string
 
 	// Init does any one-time setup: import GPG keys, register repos, etc.
-	Init(spec *config.BuildSpec) error
+	Init(template *config.ImageTemplate) error
 
 	// Packages returns the list of PackageInfo for this image build.
 	Packages() ([]PackageInfo, error)
@@ -32,7 +32,7 @@ type Provider interface {
 	// the list of PackageInfo that match.
 	MatchRequested(requested []string, all []PackageInfo) ([]PackageInfo, error)
 
-	// Resolve walks your local cache in destDir and returns the full
+	// Resolve walks dependencies and returns the full list of packages needed.
 	Resolve(req []PackageInfo, all []PackageInfo) ([]PackageInfo, error)
 }
 

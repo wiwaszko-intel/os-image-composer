@@ -16,7 +16,7 @@ import (
 // DEB: https://deb.debian.org/debian/dists/bookworm/main/binary-amd64/Packages.gz
 // DEB Download Path: https://deb.debian.org/debian/pool/main/0/0ad/0ad_0.0.26-3_amd64.deb
 // eLxr: https://mirror.elxr.dev/elxr/dists/aria/main/binary-amd64/Packages.gz
-// eLxr Donwload Path: https://mirror.elxr.dev/elxr/pool/main/p/python3-defaults/2to3_3.11.2-1_all.deb
+// eLxr Download Path: https://mirror.elxr.dev/elxr/pool/main/p/python3-defaults/2to3_3.11.2-1_all.deb
 const (
 	baseURL    = "https://mirror.elxr.dev/elxr/dists/aria/main/"
 	configName = "Packages.gz"
@@ -48,7 +48,7 @@ type eLxr12 struct {
 	repoCfg     repoConfig
 	pkgChecksum []pkgChecksum //this is not using for debian
 	gzHref      string
-	spec        *config.BuildSpec
+	template    *config.ImageTemplate
 }
 
 func init() {
@@ -59,15 +59,15 @@ func init() {
 func (p *eLxr12) Name() string { return "eLxr12" }
 
 // Init will initialize the provider, fetching repo configuration
-func (p *eLxr12) Init(spec *config.BuildSpec) error {
-
+func (p *eLxr12) Init(template *config.ImageTemplate) error {
 	logger := utils.Logger()
 
 	//todo: need to correct of how to get the arch once finalized
-	if spec.Arch == "x86_64" {
-		spec.Arch = "binary-amd64"
+	arch := template.Target.Arch
+	if arch == "x86_64" {
+		arch = "binary-amd64"
 	}
-	p.repoURL = baseURL + spec.Arch + "/" + configName
+	p.repoURL = baseURL + arch + "/" + configName
 
 	cfg, err := loadRepoConfig(p.repoURL)
 	if err != nil {
@@ -76,25 +76,24 @@ func (p *eLxr12) Init(spec *config.BuildSpec) error {
 	}
 	p.repoCfg = cfg
 	p.gzHref = cfg.PkgList
-	p.spec = spec
+	p.template = template
 
 	logger.Infof("initialized eLxr provider repo section=%s", cfg.Section)
 	logger.Infof("name=%s", cfg.Name)
 	logger.Infof("package list url=%s", cfg.PkgList)
 	logger.Infof("package download url=%s", cfg.PkgPrefix)
 	return nil
-
 }
 
 // Packages returns the list of packages
 func (p *eLxr12) Packages() ([]provider.PackageInfo, error) {
-
 	logger := utils.Logger()
 	logger.Infof("fetching packages from %s", p.repoCfg.PkgList)
 
 	packages, err := debutils.ParsePrimary(p.repoCfg.PkgPrefix, p.gzHref, p.repoCfg.ReleaseFile, p.repoCfg.ReleaseSign, p.repoCfg.PbGPGKey, p.repoCfg.BuildPath)
 	if err != nil {
 		logger.Errorf("parsing %s failed: %v", p.gzHref, err)
+		return nil, err
 	}
 
 	logger.Infof("found %d packages in eLxr repo", len(packages))
@@ -150,7 +149,7 @@ func (p *eLxr12) Resolve(req []provider.PackageInfo, all []provider.PackageInfo)
 	}
 
 	logger.Infof("requested %d packages, resolved to %d packages", len(req), len(needed))
-	logger.Infof("need a total of %d RPMs (including dependencies)", len(needed))
+	logger.Infof("need a total of %d DEBs (including dependencies)", len(needed))
 
 	for _, pkg := range needed {
 		logger.Debugf("-> %s", pkg.Name)
@@ -169,7 +168,6 @@ func (p *eLxr12) Resolve(req []provider.PackageInfo, all []provider.PackageInfo)
 
 // MatchRequested matches requested packages
 func (p *eLxr12) MatchRequested(requests []string, all []provider.PackageInfo) ([]provider.PackageInfo, error) {
-
 	logger := utils.Logger()
 
 	var out []provider.PackageInfo
@@ -177,18 +175,17 @@ func (p *eLxr12) MatchRequested(requests []string, all []provider.PackageInfo) (
 	for _, want := range requests {
 		var candidates []provider.PackageInfo
 		for _, pi := range all {
-
 			// 1) exact name match
 			if pi.Name == want || pi.Name == want+".deb" {
 				candidates = append(candidates, pi)
 				break
 			}
-			// 2) prefix by want-version (“acl-”)
+			// 2) prefix by want-version ("acl-")
 			if strings.HasPrefix(pi.Name, want+"-") {
 				candidates = append(candidates, pi)
 				continue
 			}
-			// 3) prefix by want.release (“acl-2.3.1-2.”)
+			// 3) prefix by want.release ("acl-2.3.1-2.")
 			if strings.HasPrefix(pi.Name, want+".") {
 				candidates = append(candidates, pi)
 			}
@@ -203,7 +200,7 @@ func (p *eLxr12) MatchRequested(requests []string, all []provider.PackageInfo) (
 			out = append(out, candidates[0])
 			continue
 		}
-		// Otherwise pick the “highest” by lex sort
+		// Otherwise pick the "highest" by lex sort
 		sort.Slice(candidates, func(i, j int) bool {
 			return candidates[i].Name > candidates[j].Name
 		})
@@ -212,7 +209,6 @@ func (p *eLxr12) MatchRequested(requests []string, all []provider.PackageInfo) (
 
 	logger.Infof("found %d packages in request of %d", len(out), len(requests))
 	return out, nil
-
 }
 
 func loadRepoConfig(repoUrl string) (repoConfig, error) {

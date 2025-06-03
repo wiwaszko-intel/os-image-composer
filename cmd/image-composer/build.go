@@ -28,13 +28,13 @@ var (
 // createBuildCommand creates the build subcommand
 func createBuildCommand() *cobra.Command {
 	buildCmd := &cobra.Command{
-		Use:   "build [flags] SPEC_FILE",
+		Use:   "build [flags] TEMPLATE_FILE",
 		Short: "Build a Linux distribution image",
-		Long: `Build a Linux distribution image based on the specified spec file.
-The spec file should be in JSON format according to the schema.`,
+		Long: `Build a Linux distribution image based on the specified image template file.
+The template file must be in YAML format following the image template schema.`,
 		Args:              cobra.ExactArgs(1),
 		RunE:              executeBuild,
-		ValidArgsFunction: jsonFileCompletion,
+		ValidArgsFunction: templateFileCompletion,
 	}
 
 	// Add flags
@@ -65,19 +65,22 @@ func executeBuild(cmd *cobra.Command, args []string) error {
 
 	logger := utils.Logger()
 
-	// Check if spec file is provided as first positional argument
+	// Check if template file is provided as first positional argument
 	if len(args) < 1 {
-		return fmt.Errorf("no spec file provided, usage: image-composer build [flags] SPEC_FILE")
+		return fmt.Errorf("no template file provided, usage: image-composer build [flags] TEMPLATE_FILE")
 	}
-	specFile := args[0]
+	templateFile := args[0]
 
-	// Load and validate the configuration
-	bc, err := config.Load(specFile)
+	// Load and validate the image template
+	template, err := config.LoadTemplate(templateFile)
 	if err != nil {
-		return fmt.Errorf("loading spec file: %v", err)
+		return fmt.Errorf("loading template file: %v", err)
 	}
 
-	providerName := bc.Distro + bc.Version
+	providerName := template.GetProviderName()
+	if providerName == "" {
+		return fmt.Errorf("no provider found for OS %s with distribution %s", template.Target.OS, template.Target.Dist)
+	}
 
 	// Get provider by name
 	p, ok := provider.Get(providerName)
@@ -85,8 +88,8 @@ func executeBuild(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("provider not found: %s", providerName)
 	}
 
-	// Initialize provider
-	if err := p.Init(bc); err != nil {
+	// Initialize provider with the template
+	if err := p.Init(template); err != nil {
 		return fmt.Errorf("provider init: %v", err)
 	}
 
@@ -96,8 +99,8 @@ func executeBuild(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("getting packages: %v", err)
 	}
 
-	// Match the packages in the build spec against all the packages
-	req, err := p.MatchRequested(bc.Packages, all)
+	// Match the packages in the template against all the packages
+	req, err := p.MatchRequested(template.GetPackages(), all)
 	if err != nil {
 		return fmt.Errorf("matching packages: %v", err)
 	}
@@ -162,7 +165,7 @@ func executeBuild(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// jsonFileCompletion helps with suggesting JSON files for spec file argument
-func jsonFileCompletion(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	return []string{"*.json"}, cobra.ShellCompDirectiveFilterFileExt
+// templateFileCompletion helps with suggesting YAML files for template file argument
+func templateFileCompletion(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return []string{"*.yml", "*.yaml"}, cobra.ShellCompDirectiveFilterFileExt
 }

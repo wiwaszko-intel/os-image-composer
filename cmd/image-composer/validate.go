@@ -2,50 +2,66 @@ package main
 
 import (
 	"fmt"
-	"os"
 
+	"github.com/open-edge-platform/image-composer/internal/config"
 	utils "github.com/open-edge-platform/image-composer/internal/utils/logger"
-	"github.com/open-edge-platform/image-composer/internal/validate"
 	"github.com/spf13/cobra"
 )
 
 // createValidateCommand creates the validate subcommand
 func createValidateCommand() *cobra.Command {
 	validateCmd := &cobra.Command{
-		Use:               "validate SPEC_FILE",
-		Short:             "Validate a spec file against the schema",
-		Long:              `Validate that the given JSON spec file conforms to the schema.`,
+		Use:   "validate [flags] TEMPLATE_FILE",
+		Short: "Validate an image template file",
+		Long: `Validate an image template file against the schema without building it.
+The template file must be in YAML format following the image template schema.
+This allows checking for errors in your template before committing to a full build process.`,
 		Args:              cobra.ExactArgs(1),
 		RunE:              executeValidate,
-		ValidArgsFunction: jsonFileCompletion,
+		ValidArgsFunction: templateFileCompletion,
 	}
 
 	return validateCmd
 }
 
-// executeValidate handles the validate command execution logic
+// executeValidate handles the validate command logic
 func executeValidate(cmd *cobra.Command, args []string) error {
 	logger := utils.Logger()
 
-	// Check if spec file is provided as first positional argument
+	// Check if template file is provided as first positional argument
 	if len(args) < 1 {
-		return fmt.Errorf("no spec file provided, usage: image-composer validate SPEC_FILE")
+		return fmt.Errorf("no template file provided, usage: image-composer validate TEMPLATE_FILE")
 	}
-	specFile := args[0]
+	templateFile := args[0]
 
-	logger.Infof("Validating spec file: %s", specFile)
+	logger.Infof("validating template file: %s", templateFile)
 
-	// Read the file
-	data, err := os.ReadFile(specFile)
+	// Load and validate the image template
+	template, err := config.LoadTemplate(templateFile)
 	if err != nil {
-		return fmt.Errorf("reading spec file: %v", err)
+		return fmt.Errorf("template validation failed: %v", err)
 	}
 
-	// Validate the JSON against schema
-	if err := validate.ValidateComposerJSON(data); err != nil {
-		return fmt.Errorf("validation failed: %v", err)
+	logger.Infof("✓ Template validation successful")
+	logger.Infof("  Image: %s v%s", template.Image.Name, template.Image.Version)
+	logger.Infof("  Target: %s %s (%s)", template.Target.OS, template.Target.Dist, template.Target.Arch)
+	logger.Infof("  Output: %s", template.Target.ImageType)
+	logger.Infof("  Provider: %s", template.GetProviderName())
+	logger.Infof("  System Configs: %d", len(template.SystemConfigs))
+
+	if len(template.SystemConfigs) > 0 {
+		config := template.SystemConfigs[0]
+		logger.Infof("  Config: %s (%s)", config.Name, config.Description)
+		logger.Infof("  Packages: %d", len(config.Packages))
+		logger.Infof("  Kernel: %s (%s)", config.Kernel.Version, config.Kernel.Cmdline)
+
+		if verbose && len(config.Packages) > 0 {
+			logger.Infof("  Package list:")
+			for _, pkg := range config.Packages {
+				logger.Infof("    - %s", pkg)
+			}
+		}
 	}
 
-	logger.Info("Spec file is valid")
 	return nil
 }

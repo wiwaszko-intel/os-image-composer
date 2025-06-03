@@ -1,68 +1,122 @@
 {
-	"$schema": "https://json-schema.org/draft/2020-12/schema",
-	"$id": "https://https://raw.githubusercontent.com/intel-innersource/os.linux.tiberos.os-curation-tool/refs/heads/main/schemas/os-image-template.schema.json",
-	"title": "OS Image Template",
-	"description": "Defines the layout for a raw or VHD/X image",
-	"type": "object",
-	"properties": {
-		"filename": {
-			"type": "string",
-			"description": "Name of the output disk image file, e.g. \"disk.raw\""
-		},
-		"size": {
-			"type": "string",
-			"description": "Size of the disk image, e.g. \"4GiB\""
-		},
-		"partitions": {
-			"type": "array",
-			"description": "List of partitions to create",
-			"minItems": 1,
-			"items": {
-				"type": "object",
-				"properties": {
-					"name": {
-						"type": "string",
-						"description": "Identifier for this partition, e.g. \"EFI\" or \"Root\""
-					},
-					"type": {
-						"type": "string",
-						"enum": [
-							"efi",
-							"primary"
-						],
-						"description": "\"efi\" for the EFI System Partition, \"primary\" for other partitions"
-					},
-					"size": {
-						"type": "string",
-						"description": "Size of this partition, e.g. \"512MiB\" or \"rest\""
-					},
-					"fsType": {
-						"type": "string",
-						"enum": [
-							"vfat",
-							"ext4"
-						],
-						"description": "Filesystem type to format this partition with"
-					},
-					"mountPoint": {
-						"type": "string",
-						"description": "Mount point inside the chroot, e.g. \"/boot/efi\" or \"/\""
-					}
-				},
-				"required": [
-					"name",
-					"type",
-					"size",
-					"fsType",
-					"mountPoint"
-				],
-				"additionalProperties": false
-			}
-		}
-	},
-	"required": [
-		"filename",
-		"size",
-		"partitions"
-	]
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/intel-innersource/os.linux.tiberos.os-curation-tool/refs/heads/main/schemas/os-image-template.schema.json",
+    "title": "OS Image Template",
+    "description": "Defines image configuration including target OS, packages, kernel, and system configurations",
+    "type": "object",
+  
+    "properties": {
+      "image": {
+        "type": "object",
+        "description": "Image metadata and versioning",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the image template",
+            "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9\\-_]*[a-zA-Z0-9])?$"
+          },
+          "version": {
+            "type": "string",
+            "description": "Version of the image template",
+            "pattern": "^[0-9]+(\\.[0-9]+)*$"
+          }
+        },
+        "required": ["name", "version"],
+        "additionalProperties": false
+      },
+      "target": {
+        "type": "object",
+        "description": "Target OS and image configuration",
+        "properties": {
+          "os": {
+            "type": "string",
+            "description": "Target operating system",
+            "enum": ["azure-linux", "emt", "elxr"]
+          },
+          "dist": {
+            "type": "string",
+            "description": "Distribution identifier",
+            "enum": ["azl3", "emt3", "elxr12"]
+          },
+          "arch": {
+            "type": "string",
+            "description": "Target architecture",
+            "enum": ["x86_64", "aarch64"]
+          },
+          "imageType": {
+            "type": "string",
+            "description": "Type of image to build",
+            "enum": ["raw", "iso"]
+          }
+        },
+        "required": ["os", "dist", "arch", "imageType"],
+        "additionalProperties": false
+      },
+      "systemConfigs": {
+        "type": "array",
+        "description": "Array of system configuration objects",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Name of the system configuration",
+              "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9\\-_]*[a-zA-Z0-9])?$"
+            },
+            "description": {
+              "type": "string",
+              "description": "Description of the system configuration"
+            },
+            "packages": {
+              "type": "array",
+              "description": "List of packages to include in the system",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9\\-_.+]*[a-zA-Z0-9])?$"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "kernel": {
+              "type": "object",
+              "description": "Kernel configuration",
+              "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Kernel version",
+                  "pattern": "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$"
+                },
+                "cmdline": {
+                  "type": "string",
+                  "description": "Kernel command line parameters"
+                }
+              },
+              "required": ["version"],
+              "additionalProperties": false
+            }
+          },
+          "required": ["name"],
+          "additionalProperties": false
+        },
+        "minItems": 1
+      }
+    },
+  
+    "required": ["image", "target", "systemConfigs"],
+    "additionalProperties": false,
+  
+    "allOf": [
+      {
+        "if": { "properties": { "target": { "properties": { "os": { "const": "azure-linux" } } } } },
+        "then": { "properties": { "target": { "properties": { "dist": { "enum": ["azl3"] } } } } }
+      },
+      {
+        "if": { "properties": { "target": { "properties": { "os": { "const": "emt" } } } } },
+        "then": { "properties": { "target": { "properties": { "dist": { "enum": ["emt3"] } } } } }
+      },
+      {
+        "if": { "properties": { "target": { "properties": { "os": { "const": "elxr" } } } } },
+        "then": { "properties": { "target": { "properties": { "dist": { "enum": ["elxr12"] } } } } }
+      }
+    ]
 }

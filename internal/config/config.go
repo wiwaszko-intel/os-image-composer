@@ -2,7 +2,6 @@
 package config
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -14,21 +13,33 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// BuildSpec represents your JSON schema.
-type BuildSpec struct {
-	Distro    string       `json:"distro"`
-	Version   string       `json:"version"`
-	Arch      string       `json:"arch"`
-	Packages  []string     `json:"packages"`
-	Immutable bool         `json:"immutable"`
-	Output    string       `json:"output"`
-	Kernel    KernelConfig `json:"kernel"`
+// ImageTemplate represents the YAML image template structure
+type ImageTemplate struct {
+	Image struct {
+		Name    string `yaml:"name"`
+		Version string `yaml:"version"`
+	} `yaml:"image"`
+	Target struct {
+		OS        string `yaml:"os"`
+		Dist      string `yaml:"dist"`
+		Arch      string `yaml:"arch"`
+		ImageType string `yaml:"imageType"`
+	} `yaml:"target"`
+	SystemConfigs []SystemConfig `yaml:"systemConfigs"`
 }
 
-// KernelConfig holds the nested "kernel" object.
+// SystemConfig represents a system configuration within the template
+type SystemConfig struct {
+	Name        string       `yaml:"name"`
+	Description string       `yaml:"description"`
+	Packages    []string     `yaml:"packages"`
+	Kernel      KernelConfig `yaml:"kernel"`
+}
+
+// KernelConfig holds the kernel configuration
 type KernelConfig struct {
-	Version string `json:"version"`
-	Cmdline string `json:"cmdline"`
+	Version string `yaml:"version"`
+	Cmdline string `yaml:"cmdline"`
 }
 
 // GlobalConfig holds essential tool-level configuration parameters
@@ -48,37 +59,118 @@ type LoggingConfig struct {
 	Level string `yaml:"level" json:"level"` // Log verbosity level: debug (most verbose), info (default), warn (warnings only), error (errors only)
 }
 
-// Load loads a BuildSpec from the specified path
-func Load(path string) (*BuildSpec, error) {
+// LoadTemplate loads an ImageTemplate from the specified YAML template path
+func LoadTemplate(path string) (*ImageTemplate, error) {
 	logger := utils.Logger()
 
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	// validate raw JSON against schema
-	if err := validate.ValidateComposerJSON(data); err != nil {
-		return nil, fmt.Errorf("validation error: %w", err)
-	}
-	// unmarshal into typed struct
-	var bc BuildSpec
-	dec := json.NewDecoder(bytes.NewReader(data))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&bc); err != nil {
-		return nil, fmt.Errorf("parsing config: %w", err)
+
+	// Only support YAML/YML files
+	ext := strings.ToLower(filepath.Ext(path))
+	if ext != ".yml" && ext != ".yaml" {
+		return nil, fmt.Errorf("unsupported file format: %s (only .yml and .yaml are supported)", ext)
 	}
 
-	logger.Infof("loaded config: \n%s", string(data))
-	return &bc, nil
+	template, err := parseYAMLTemplate(data)
+	if err != nil {
+		return nil, fmt.Errorf("loading YAML template: %w", err)
+	}
+
+	logger.Infof("loaded image template from %s: name=%s, os=%s, dist=%s, arch=%s",
+		path, template.Image.Name, template.Target.OS, template.Target.Dist, template.Target.Arch)
+	return template, nil
+}
+
+// parseYAMLTemplate loads an ImageTemplate from YAML data
+func parseYAMLTemplate(data []byte) (*ImageTemplate, error) {
+	// Parse YAML to generic interface for validation
+	var raw interface{}
+	if err := yaml.Unmarshal(data, &raw); err != nil {
+		return nil, fmt.Errorf("parsing YAML: %w", err)
+	}
+
+	// Convert to JSON for schema validation
+	jsonData, err := json.Marshal(raw)
+	if err != nil {
+		return nil, fmt.Errorf("converting to JSON for validation: %w", err)
+	}
+
+	// Validate against image template schema
+	if err := validate.ValidateImageTemplateJSON(jsonData); err != nil {
+		return nil, fmt.Errorf("template validation error: %w", err)
+	}
+
+	// Parse into template structure
+	var template ImageTemplate
+	if err := yaml.Unmarshal(data, &template); err != nil {
+		return nil, fmt.Errorf("parsing template: %w", err)
+	}
+
+	return &template, nil
+}
+
+// GetProviderName returns the provider name for the given template
+func (t *ImageTemplate) GetProviderName() string {
+	// Map OS/dist combinations to provider names
+	providerMap := map[string]map[string]string{
+		"azure-linux": {"azl3": "AzureLinux3"},
+		"emt":         {"emt3": "EMT3.0"},
+		"elxr":        {"elxr12": "eLxr12"},
+	}
+
+	if providers, ok := providerMap[t.Target.OS]; ok {
+		if provider, ok := providers[t.Target.Dist]; ok {
+			return provider
+		}
+	}
+	return ""
+}
+
+// GetDistroVersion returns the version string expected by providers
+func (t *ImageTemplate) GetDistroVersion() string {
+	versionMap := map[string]string{
+		"azl3":   "3",
+		"emt3":   "3.0",
+		"elxr12": "12",
+	}
+	return versionMap[t.Target.Dist]
+}
+
+// GetPackages returns all packages from the first system configuration
+// TODO: In the future, we might want to support multiple configs or allow selection
+func (t *ImageTemplate) GetPackages() []string {
+	if len(t.SystemConfigs) > 0 {
+		return t.SystemConfigs[0].Packages
+	}
+	return []string{}
+}
+
+// GetKernel returns the kernel configuration from the first system configuration
+func (t *ImageTemplate) GetKernel() KernelConfig {
+	if len(t.SystemConfigs) > 0 {
+		return t.SystemConfigs[0].Kernel
+	}
+	return KernelConfig{}
+}
+
+// GetSystemConfigName returns the name of the first system configuration
+func (t *ImageTemplate) GetSystemConfigName() string {
+	if len(t.SystemConfigs) > 0 {
+		return t.SystemConfigs[0].Name
+	}
+	return ""
 }
 
 // DefaultGlobalConfig returns a GlobalConfig with sensible defaults
 func DefaultGlobalConfig() *GlobalConfig {
 	return &GlobalConfig{
 		Workers:  8,
-		CacheDir: "./cache",     // Changed from ./downloads for consistency
-		WorkDir:  "./workspace", // Changed from ./builds to avoid conflict with build artifacts
-		TempDir:  "",            // Will use system temp
+		CacheDir: "./cache",
+		WorkDir:  "./workspace",
+		TempDir:  "./tmp",
 
 		Logging: LoggingConfig{
 			Level: "info",

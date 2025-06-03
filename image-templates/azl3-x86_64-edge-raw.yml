@@ -18,11 +18,9 @@ systemConfigs:
     # Package Configuration
     packages:
       # Additional packages beyond the base system
-      - openssh-server      # Remote access
-      - docker-ce          # Container runtime
-      - vim                # Text editor
-      - curl               # HTTP client
-      - wget               # File downloader
+      - cloud-init
+      - rsyslog
+
 
     # Kernel Configuration
     kernel:

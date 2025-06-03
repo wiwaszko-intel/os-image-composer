@@ -1,8 +1,8 @@
 # Image-Composer CLI Specification
 
 `image-composer` is a command-line tool for generating custom OS images for
-different operating systems including Edge Microvisor toolkit, Azure, Ubuntu,
-and RedHat. It provides a flexible, configurability-first approach to creating production-ready OS images with precise customization.
+different operating systems including Edge Microvisor toolkit, Azure Linux,
+and Wind River eLxr. It provides a flexible, configurability-first approach to creating production-ready OS images with precise customization.
 
 ## Related Documentation
 
@@ -17,7 +17,7 @@ around:
 
 1. A global configuration file that defines system-wide settings like cache
 locations and provider configurations
-2. Build specification files (in YAML format) that define per-image build
+2. Image template files (in YAML format) that define per-image build
 requirements
 
 The tool follows a staged build process, supporting package caching, image
@@ -35,14 +35,14 @@ flowchart TD
     Config --> Commands{Commands}
     
     Commands -->|build| Build[Build OS Image]
-    Build --> ReadSpec[Read YAML Spec]
-    ReadSpec --> CheckCache{Image in Cache?}
+    Build --> ReadTemplate[Read YAML Template]
+    ReadTemplate --> CheckCache{Image in Cache?}
     CheckCache -->|Yes| UseCache[Use Cached Image]
     CheckCache -->|No| BuildProcess[Run Build Pipeline]
     BuildProcess --> SaveImage[Save Output Image]
     UseCache --> SaveImage
     
-    Commands -->|validate| Validate[Validate Spec File]
+    Commands -->|validate| Validate[Validate Template File]
     
     Commands -->|cache| Cache[Manage Caches]
     Cache --> CacheOps[List/Clean/Export/Import]
@@ -59,11 +59,11 @@ flowchart TD
     class Start command;
     class Build,Validate,Cache,Template,Provider command;
     class CheckCache decision;
-    class ReadSpec,BuildProcess,SaveImage,UseCache,CacheOps process;
+    class ReadTemplate,BuildProcess,SaveImage,UseCache,CacheOps process;
     
 ```
 
-The primary workflow is through the `build` command, which reads a build specification file, checks if an image matching those specifications is already cached, and either uses the cached image or runs the build pipeline to create a new image.  
+The primary workflow is through the `build` command, which reads an image template file, checks if an image matching those specifications is already cached, and either uses the cached image or runs the build pipeline to create a new image.  
 **_NOTE:_**  The build pipeline will have package caching mechanism unless instructed to skip in the command option `--no-package-cache`
 
 See also:
@@ -98,27 +98,24 @@ taking priority over configuration file settings:
 
 ### Build Command
 
-Build an OS image from a build specification file. This is the primary command for creating custom OS images according to your requirements.
+Build an OS image from an image template file. This is the primary command for creating custom OS images according to your requirements.
 
 ```bash
-image-composer build [options] SPEC_FILE
+image-composer build [options] TEMPLATE_FILE
 ```
 
 Options:
 
 | Option | Description |
 |--------|-------------|
-| `--output-dir DIR, -o DIR` | Output directory for the finished image (default: ./output). Final images will be placed here with names based on the specification. |
+| `--output-dir DIR, -o DIR` | Output directory for the finished image (default: ./output). Final images will be placed here with names based on the template. |
 | `--force, -f` | Force overwrite existing files. By default, the tool will not overwrite existing images with the same name. |
-| `--no-cache` | Disable all caching mechanisms (both package and image caching). Useful when you need a completely fresh build. |
-| `--no-package-cache` | Disable package caching only. Packages will be downloaded fresh each time, but previous image builds might still be used. |
-| `--no-image-cache` | Disable image caching only. Previous built images won't be reused, but package cache will still be utilized. |
 | `--keep-temp` | Keep temporary files after build for debugging purposes. These are normally cleaned up automatically. |
 | `--parallel N` | Run up to N parallel tasks (default: from config). Increases build speed on multi-core systems. |
 | `--stage NAME` | Build up to specific stage and stop (e.g., "packages"). Useful for debugging or when you need a partially-built image. |
 | `--skip-stage NAME` | Skip specified stage. Allows bypassing certain build phases when they're not needed. |
 | `--timeout DURATION` | Maximum build duration (e.g., 1h30m). Prevents builds from running indefinitely due to issues. |
-| `--variables FILE` | Load variables from YAML file to customize the build without modifying the spec file. |
+| `--variables FILE` | Load variables from YAML file to customize the build without modifying the template file. |
 | `--set KEY=VALUE` | Set individual variable for the build (can be specified multiple times). |
 
 See also:
@@ -129,11 +126,11 @@ for information about each build stage
 
 ### Validate Command
 
-Validate a build specification file without building it. This allows checking
-for errors in your specification before committing to a full build process.
+Validate an image template file without building it. This allows checking
+for errors in your template before committing to a full build process.
 
 ```bash
-image-composer validate [options] SPEC_FILE
+image-composer validate [options] TEMPLATE_FILE
 ```
 
 Options:
@@ -142,7 +139,7 @@ Options:
 |--------|-------------|
 | `--schema-only` | Only validate YAML schema without checking filesystem dependencies or provider compatibility. This performs a quick validation of the syntax only. |
 | `--strict` | Enable strict validation with additional checks. Enforces best practices and checks for potential issues that might not cause immediate errors. |
-| `--list-warnings` | Show all warnings, including minor issues that might not prevent the build. Helpful for creating more robust specification files. |
+| `--list-warnings` | Show all warnings, including minor issues that might not prevent the build. Helpful for creating more robust template files. |
 
 See also:
 
@@ -163,7 +160,7 @@ Subcommands:
 | Subcommand | Description |
 |------------|-------------|
 | `list` | List cached images with their metadata, timestamps, and storage locations. Helps you understand what's already cached and available for reuse. |
-| `info [hash]` | Show detailed cache info for a specific image hash, including build parameters and spec details. |
+| `info [hash]` | Show detailed cache info for a specific image hash, including build parameters and template details. |
 | `clean [--all\|--packages\|--images]` | Clean cache to reclaim disk space. You can selectively clean either packages or images, or both with --all. |
 | `export [hash] FILE` | Export a cached image to a specific file location. Useful when you need to retrieve a specific cached build. |
 | `import FILE` | Import an existing image into the cache. Allows pre-populating the cache with images built elsewhere. |
@@ -187,7 +184,7 @@ Subcommands:
 |------------|-------------|
 | `list` | List available templates with descriptions and supported configurations. Templates provide ready-to-use base configurations for common image types. |
 | `show TEMPLATE` | Show template details including all settings, variables, and customization options for a specific template. |
-| `create SPEC_FILE` | Create a new template from an existing specification file, making it available for future use. |
+| `create TEMPLATE_FILE` | Create a new template from an existing template file, making it available for future use. |
 | `export TEMPLATE FILE` | Export a template to a file for sharing with other users or systems. Templates can be version-controlled and distributed. |
 
 See also:
@@ -222,19 +219,19 @@ providers are used during the build process
 
 ```bash
 # Build an image with default settings
-image-composer build my-image-spec.yml
+image-composer build my-image-template.yml
 
 # Build with custom global config
-image-composer --config=/path/to/config.yaml build my-image-spec.yml
+image-composer --config=/path/to/config.yaml build my-image-template.yml
 
 # Build with variable substitution
-image-composer build --set "version=1.2.3" --set "hostname=edge-device-001" my-image-spec.yml
+image-composer build --set "version=1.2.3" --set "hostname=edge-device-001" my-image-template.yml
 
 # Build up to a specific stage
-image-composer build --stage configuration my-image-spec.yml
+image-composer build --stage configuration my-image-template.yml
 
 # Build with a timeout
-image-composer build --timeout 30m my-image-spec.yml
+image-composer build --timeout 30m my-image-template.yml
 ```
 
 ### Managing Cache
@@ -259,8 +256,8 @@ image-composer template list
 # Show details for a template
 image-composer template show ubuntu-server-22.04
 
-# Create a new template from a spec file
-image-composer template create my-image-spec.yml
+# Create a new template from a template file
+image-composer template create my-image-template.yml
 ```
 
 ## Configuration Files
@@ -286,28 +283,24 @@ storage:
     retention_days: 30                       # How long to keep cached packages
   image_cache:
     enabled: true                            # Enable image caching
-    max_count: 5                             # Number of images to keep per spec
+    max_count: 5                             # Number of images to keep per template
 
 providers:
   # OS-specific provider configurations
-  ubuntu:
-    repositories:
-      - name: "main"
-        url: "http://archive.ubuntu.com/ubuntu/"
-    debootstrap_path: "/usr/sbin/debootstrap" # Path to debootstrap tool
-  
-  redhat:
+  azure_linux:
     repositories:
       - name: "base"
-        url: "https://cdn.redhat.com/content/dist/rhel8/8/x86_64/baseos/os"
+        url: "https://packages.microsoft.com/azurelinux/3.0/prod/base/"
     
-  azure:
-    cli_path: "/usr/bin/az"                  # Path to Azure CLI
-    gallery_resource_group: "image-gallery-rg" # Azure resource group for images
+  elxr:
+    repositories:
+      - name: "main"
+        url: "https://mirror.elxr.dev/elxr/dists/aria/main/"
     
-  edge_microvisor:
-    toolkit_source: "https://download.edge-microvisor.io/toolkit/" # Toolkit location
-    secure_boot_keys_dir: "/etc/image-composer/secure-keys/" # Secure boot key location
+  emt:
+    repositories:
+      - name: "edge-base"
+        url: "https://files-rs.edgeorchestration.intel.com/files-edge-orch/microvisor/rpm/3.0/"
 ```
 
 See also:
@@ -315,9 +308,9 @@ See also:
 - [Global Options](#global-options) for command-line options that can override
 these settings
 
-### Build Specification File
+### Image Template File
 
-The build specification file (YAML format) defines the requirements for a
+The image template file (YAML format) defines the requirements for a
 specific image. This is where you define exactly what goes into your custom OS
 image, including packages, configurations, and customizations.
 
@@ -325,61 +318,38 @@ image, including packages, configurations, and customizations.
 image:
   # Basic image identification
   name: edge-device-image                    # Name of the resulting image
-  version: 1.2.0                             # Version for tracking and naming
-  description: Edge device image with Microvisor support  # Human-readable description
-  base:
-    os: ubuntu                               # Base operating system
-    version: 22.04                           # OS version
-    type: minimal                            # OS variant (minimal, server, desktop)
+  version: "1.2.0"                          # Version for tracking and naming
 
-build:
-  # Build process configuration
-  cache:
-    use_package_cache: true                  # Whether to use the package cache
-    use_image_cache: true                    # Whether to use the image cache
-  stages:                                    # Build stages in sequence
-    - validate                               # Validate the build spec
-    - packages                               # Pull required packages and dependencies
-    - compose                                # Compose image
-    - configuration                          # Applies configurations
-    - finalize                               # verify and output the image 
-customizations:
-  # OS customizations
-  packages:
-    install:                                 # Packages to install
+target:
+  # Target OS and image configuration
+  os: azure-linux                           # Base operating system
+  dist: azl3                                 # Distribution identifier
+  arch: x86_64                               # Target architecture
+  imageType: raw                             # Output format (raw, iso, img, vhd)
+
+systemConfigs:
+  # Array of system configurations
+  - name: edge                               # Configuration name
+    description: Edge device image with Microvisor support  # Human-readable description
+    
+    # Package configuration
+    packages:                                # Packages to install
       - openssh-server
       - docker-ce
-    remove:                                  # Packages to remove
-      - snapd
-  services:
-    enabled:                                 # Services to enable on boot
-      - ssh
-      - docker
-    disabled:                                # Services to disable
-      - apparmor
-  files:                                     # Custom files to add to the image
-    - source: ./files/sshd_config            # Path to source file (relative to spec)
-      destination: /etc/ssh/sshd_config      # Path in the target image
-      permissions: 0644                      # File permissions
-      owner: root:root                       # File ownership
-  scripts:                                   # Scripts to run during build
-    - path: ./scripts/setup-networking.sh    # Path to script (relative to spec)
-      args:                                  # Arguments to pass to the script
-        - --interface
-        - eth0
-      run_in_chroot: true                    # Whether to run in chroot environment
-
-output:
-  # Output settings
-  format: qcow2                              # Output format (qcow2, raw, vhd)
-  compression: gzip                          # Compression algorithm
-  destination: ./output/                     # Output directory override
+      - vim
+      - curl
+      - wget
+    
+    # Kernel configuration
+    kernel:
+      version: "6.12"                        # Kernel version to include
+      cmdline: "quiet splash"                # Additional kernel command-line parameters
 ```
 
 See also:
 
 - [Common Build Patterns](./image-composer-build-process.md#common-build-patterns)
-for example build specifications
+for example image templates
 - [Template Structure](./image-composer-templates.md#template-structure) for how
 templates can be used to generate build specifications
 
@@ -393,7 +363,7 @@ automation:
 | 0 | Success - The command completed successfully |
 | 1 | General error - An unspecified error occurred |
 | 2 | Command line usage error - Invalid options or arguments |
-| 3 | Validation error - The specification file failed validation |
+| 3 | Validation error - The template file failed validation |
 | 4 | Build error - The build process failed |
 | 5 | Configuration error - Error in configuration files |
 
@@ -426,10 +396,10 @@ For detailed logs to troubleshoot issues:
 
 ```bash
 # Enable debug logging
-image-composer --log-level debug build my-image-spec.yml
+image-composer --log-level debug build my-image-template.yml
 
 # Save logs to a file
-image-composer --log-level debug build my-image-spec.yml 2>&1 | tee build-log.txt
+image-composer --log-level debug build my-image-template.yml 2>&1 | tee build-log.txt
 ```
 
 See also:

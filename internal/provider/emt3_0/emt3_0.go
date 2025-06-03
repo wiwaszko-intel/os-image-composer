@@ -34,14 +34,12 @@ type repoConfig struct {
 	GPGKey       string
 }
 
-// emt30 implements provider.Provider
+// Emt30 implements provider.Provider
 type Emt30 struct {
-	repoURL string
-	repoCfg repoConfig
-	//repomd		string
-	//primaryURL	string
-	zstHref string
-	spec    *config.BuildSpec
+	repoURL  string
+	repoCfg  repoConfig
+	zstHref  string
+	template *config.ImageTemplate
 }
 
 func init() {
@@ -52,7 +50,7 @@ func init() {
 func (p *Emt30) Name() string { return "EMT3.0" }
 
 // Init will initialize the provider, fetching repo configuration
-func (p *Emt30) Init(spec *config.BuildSpec) error {
+func (p *Emt30) Init(template *config.ImageTemplate) error {
 	logger := utils.Logger()
 
 	resp, err := http.Get(configURL)
@@ -76,7 +74,7 @@ func (p *Emt30) Init(spec *config.BuildSpec) error {
 
 	p.repoURL = configURL
 	p.repoCfg = cfg
-	p.spec = spec
+	p.template = template
 	p.zstHref = href
 
 	logger.Infof("initialized EMT3.0 provider repo section=%s", cfg.Section)
@@ -94,6 +92,7 @@ func (p *Emt30) Packages() ([]provider.PackageInfo, error) {
 	packages, err := rpmutils.ParsePrimary(p.repoCfg.URL, p.zstHref)
 	if err != nil {
 		logger.Errorf("parsing primary.xml.zst failed: %v", err)
+		return nil, err
 	}
 
 	logger.Infof("found %d packages in EMT30 repo", len(packages))
@@ -112,12 +111,12 @@ func (p *Emt30) MatchRequested(requests []string, all []provider.PackageInfo) ([
 				candidates = append(candidates, pi)
 				break
 			}
-			// 2) prefix by want-version (“acl-”)
+			// 2) prefix by want-version ("acl-")
 			if strings.HasPrefix(pi.Name, want+"-") {
 				candidates = append(candidates, pi)
 				continue
 			}
-			// 3) prefix by want.release (“acl-2.3.1-2.”)
+			// 3) prefix by want.release ("acl-2.3.1-2.")
 			if strings.HasPrefix(pi.Name, want+".") {
 				candidates = append(candidates, pi)
 			}
@@ -131,7 +130,7 @@ func (p *Emt30) MatchRequested(requests []string, all []provider.PackageInfo) ([
 			out = append(out, candidates[0])
 			continue
 		}
-		// Otherwise pick the “highest” by lex sort
+		// Otherwise pick the "highest" by lex sort
 		sort.Slice(candidates, func(i, j int) bool {
 			return candidates[i].Name > candidates[j].Name
 		})
@@ -155,7 +154,7 @@ func (p *Emt30) Validate(destDir string) error {
 	if err != nil {
 		return fmt.Errorf("read GPG key body: %w", err)
 	}
-	logger.Infof("fetched GPG key (%d)", len(keyBytes))
+	logger.Infof("fetched GPG key (%d bytes)", len(keyBytes))
 	logger.Debugf("GPG key: %s\n", keyBytes)
 
 	// store in a temp file
