@@ -14,10 +14,10 @@ and Wind River eLxr.
 
 ## Documentation
 
-- [📖 CLI Specification](./image-composer-cli-specification.md) - Complete command-line reference and usage guide
-- [🔧 Build Process](./image-composer-build-process.md) - Understanding the five-stage build pipeline
-- [⚡ Caching](./image-composer-caching.md) - Package and image caching for performance
-- [📋 Templates](./image-composer-templates.md) - Creating and using reusable image templates
+- [📖 CLI Specification](./docs/architecture/image-composer-cli-specification.md) - Complete command-line reference and usage guide
+- [🔧 Build Process](./docs/architecture/image-composer-build-process.md) - Understanding the five-stage build pipeline
+- [⚡ Caching](./docs/architecture/image-composer-caching.md) - Package and image caching for performance
+- [📋 Templates](./docs/architecture/image-composer-templates.md) - Creating and using reusable image templates
 
 ## Quick Start
 
@@ -35,7 +35,7 @@ go run ./cmd/image-composer --help
 ./image-composer validate image-templates/azl3-x86_64-edge-raw.yml
 ```
 
-For complete usage instructions, see the [CLI Specification](./image-composer-cli-specification.md).
+For complete usage instructions, see the [CLI Specification](./docs/architecture/image-composer-cli-specification.md).
 
 ## Get Started
 
@@ -504,9 +504,9 @@ systemConfigs:
 ## Getting Help
 
 - **Quick Reference**: Run `./image-composer --help` to see all available commands and options
-- **Complete Guide**: See the [CLI Specification](./image-composer-cli-specification.md) for detailed documentation
+- **Complete Guide**: See the [CLI Specification](./docs/architecture/image-composer-cli-specification.md) for detailed documentation
 - **Examples**: Check the [template examples](#template-examples) section below
-- **Troubleshooting**: Refer to the [Build Process documentation](./image-composer-build-process.md#troubleshooting-build-issues)
+- **Troubleshooting**: Refer to the [Build Process documentation](./docs/architecture/image-composer-build-process.md#troubleshooting-build-issues)
 
 ## Contributing
 
