@@ -2,37 +2,147 @@ package imageos
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
 
+	"github.com/open-edge-platform/image-composer/internal/chroot"
 	"github.com/open-edge-platform/image-composer/internal/config"
+	"github.com/open-edge-platform/image-composer/internal/image/imageboot"
 	"github.com/open-edge-platform/image-composer/internal/image/imagesecure"
 	"github.com/open-edge-platform/image-composer/internal/image/imagesign"
+	"github.com/open-edge-platform/image-composer/internal/utils/logger"
+	"github.com/open-edge-platform/image-composer/internal/utils/mount"
+	"github.com/open-edge-platform/image-composer/internal/utils/shell"
 )
 
-func InstallImageOs(diskPath string, template *config.ImageTemplate) error {
-	installRoot := "" // This is a placeholder for the install root path.
-	err := preImageOsInstall(installRoot, template)
+func InstallImageOs(diskPathIdMap map[string]string, template *config.ImageTemplate) error {
+	log := logger.Logger()
+	log.Infof("Installing OS for image: %s", template.GetImageName())
+
+	installRoot, err := initChrootInstallRoot(template)
 	if err != nil {
+		return fmt.Errorf("failed to initialize chroot install root: %w", err)
+	}
+
+	mountPointInfoList, err := mountDiskToChroot(installRoot, diskPathIdMap, template)
+	if err != nil {
+		return fmt.Errorf("failed to mount disk to chroot: %w", err)
+	}
+
+	log.Infof("Image installation pre-processing...")
+	if err = preImageOsInstall(installRoot, template); err != nil {
 		return fmt.Errorf("pre-install failed: %w", err)
 	}
-	err = installImagePkgs(installRoot, template)
-	if err != nil {
+
+	log.Infof("Image package installation...")
+	if err = installImagePkgs(installRoot, template); err != nil {
 		return fmt.Errorf("failed to install image packages: %w", err)
 	}
-	err = updateImageConfig(installRoot, template)
-	if err != nil {
+
+	log.Infof("Image system configuration...")
+	if err = updateImageConfig(installRoot, template); err != nil {
 		return fmt.Errorf("failed to update image config: %w", err)
 	}
-	err = imagesecure.ConfigImageSecurity(installRoot, template)
-	if err != nil {
+
+	log.Infof("Installing bootloader...")
+	if err = imageboot.InstallImageBoot(diskPathIdMap, template); err != nil {
+		return fmt.Errorf("failed to install image boot: %w", err)
+	}
+
+	if err = imagesecure.ConfigImageSecurity(installRoot, template); err != nil {
 		return fmt.Errorf("failed to configure image security: %w", err)
 	}
-	err = imagesign.SignImage(installRoot, template)
-	if err != nil {
+
+	log.Infof("Configuring UKI...")
+	if err = buildImageUKI(installRoot, template); err != nil {
+		return fmt.Errorf("failed to configure UKI: %w", err)
+	}
+
+	if err = imagesign.SignImage(installRoot, template); err != nil {
 		return fmt.Errorf("failed to sign image: %w", err)
 	}
-	err = postImageOsInstall(installRoot, template)
-	if err != nil {
+
+	log.Infof("Image installation post-processing...")
+	if err = postImageOsInstall(installRoot, template); err != nil {
 		return fmt.Errorf("post-install failed: %w", err)
+	}
+
+	if err = umountDiskFromChroot(mountPointInfoList); err != nil {
+		return fmt.Errorf("failed to unmount disk from chroot: %w", err)
+	}
+
+	return nil
+}
+
+func initChrootInstallRoot(template *config.ImageTemplate) (string, error) {
+	if _, err := os.Stat(chroot.ChrootImageBuildDir); os.IsNotExist(err) {
+		return "", fmt.Errorf("chroot image build directory does not exist: %s", chroot.ChrootImageBuildDir)
+	}
+	sysConfigName := template.GetSystemConfigName()
+	installRoot := filepath.Join(chroot.ChrootImageBuildDir, sysConfigName)
+	if _, err := os.Stat(installRoot); err == nil {
+		return installRoot, fmt.Errorf("install root already exists: %s", installRoot)
+	}
+	if _, err := shell.ExecCmd("mkdir -p "+installRoot, true, "", nil); err != nil {
+		return installRoot, fmt.Errorf("failed to create directory %s: %w", installRoot, err)
+	}
+	return installRoot, nil
+}
+
+func mountDiskToChroot(installRoot string, diskPathIdMap map[string]string, template *config.ImageTemplate) ([]map[string]string, error) {
+	var mountPointInfoList []map[string]string
+	diskInfo := template.GetDiskConfig()
+	partions := diskInfo.Partitions
+	for diskId, diskPath := range diskPathIdMap {
+		for _, partition := range partions {
+			if partition.ID == diskId {
+				mountPointInfo := make(map[string]string)
+				mountPointInfo["Id"] = diskId
+				mountPointInfo["Path"] = diskPath
+				mountPointInfo["MountPoint"] = filepath.Join(installRoot, partition.MountPoint)
+				if partition.MountPoint == "/boot/efi" {
+					mountPointInfo["Flags"] = fmt.Sprintf("-t %s -o umask=0077", partition.FsType)
+				} else {
+					mountPointInfo["Flags"] = fmt.Sprintf("-t %s", partition.FsType)
+				}
+				mountPointInfoList = append(mountPointInfoList, mountPointInfo)
+			}
+		}
+	}
+
+	if len(mountPointInfoList) == 0 {
+		//return nil, fmt.Errorf("no mount points found for the provided diskPathIdMap")
+		return nil, nil
+	}
+
+	// sort the mountPointInfoList by the partition.MountPoint
+	// mount requires order that the "/" mounted first, then "/boot", "/boot/efi", etc.
+	sort.Slice(mountPointInfoList, func(i, j int) bool {
+		return mountPointInfoList[i]["MountPoint"] < mountPointInfoList[j]["MountPoint"]
+	})
+
+	for _, mountPointInfo := range mountPointInfoList {
+		mountPoint := mountPointInfo["MountPoint"]
+		path := mountPointInfo["Path"]
+		flags := mountPointInfo["Flags"]
+		if err := mount.MountPath(path, mountPoint, flags); err != nil {
+			return nil, fmt.Errorf("failed to mount %s to %s with flags %s: %w", path, mountPoint, flags, err)
+		}
+	}
+
+	return mountPointInfoList, nil
+}
+
+func umountDiskFromChroot(mountPointInfoList []map[string]string) error {
+	mountPointInfoListLen := len(mountPointInfoList)
+	for i := mountPointInfoListLen - 1; i >= 0; i-- {
+		mountPointInfo := mountPointInfoList[i]
+		mountPoint := mountPointInfo["MountPoint"]
+		err := mount.UmountPath(mountPoint)
+		if err != nil {
+			return fmt.Errorf("failed to unmount %s: %w", mountPoint, err)
+		}
 	}
 	return nil
 }
@@ -62,10 +172,6 @@ func updateImageConfig(installRoot string, template *config.ImageTemplate) error
 	if err != nil {
 		return fmt.Errorf("failed to add additional files to image: %w", err)
 	}
-	err = configImageUKI(installRoot, template)
-	if err != nil {
-		return fmt.Errorf("failed to configure UKI: %w", err)
-	}
 	return nil
 }
 
@@ -89,6 +195,6 @@ func addImageAdditionalFiles(installRoot string, template *config.ImageTemplate)
 	return nil
 }
 
-func configImageUKI(installRoot string, template *config.ImageTemplate) error {
+func buildImageUKI(installRoot string, template *config.ImageTemplate) error {
 	return nil
 }
