@@ -91,9 +91,9 @@ func MatchRequested(requests []string, all []ospackage.PackageInfo) ([]ospackage
 	return out, nil
 }
 
-func isAllDigits(s string) bool {
+func isAcceptedChar(s string) bool {
 	for i := 0; i < len(s); i++ {
-		if s[i] < '0' || s[i] > '9' {
+		if (s[i] < '0' || s[i] > '9') && s[i] != '-' {
 			return false
 		}
 	}
@@ -109,7 +109,7 @@ func isValidVersionFormat(s string) bool {
 	} else {
 		prefix = s[:dotIdx]
 	}
-	if len(prefix) > 0 && isAllDigits(prefix) {
+	if len(prefix) > 0 && isAcceptedChar(prefix) {
 		return true
 	}
 	// If we reach here, the format is not valid
