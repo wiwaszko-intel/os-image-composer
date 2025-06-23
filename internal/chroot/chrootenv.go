@@ -228,22 +228,24 @@ func InitChrootEnv(targetOs, targetDist, targetArch string) error {
 	if !chrootRootfsExist {
 		// Create chroot RPM repository
 		if err = createChrootRPMRepo(targetOs, targetDist); err != nil {
-			if err := UmountChrootSysfs("/"); err != nil {
-				return fmt.Errorf("failed to unmount sysfs for chroot environment: %w", err)
-			}
-			return fmt.Errorf("failed to create chroot RPM repository: %w", err)
+			err = fmt.Errorf("failed to create chroot RPM repository: %w", err)
+			goto fail
 		}
 	} else {
 		// If the chroot environment already exists, update the local RPM repository
-		if err := initChrootLocalRPMRepo(); err != nil {
-			if err := UmountChrootSysfs("/"); err != nil {
-				return fmt.Errorf("failed to unmount sysfs for chroot environment: %w", err)
-			}
-			return fmt.Errorf("failed to initialize chroot local RPM repository: %w", err)
+		if err = initChrootLocalRPMRepo(); err != nil {
+			err = fmt.Errorf("failed to initialize chroot local RPM repository: %w", err)
+			goto fail
 		}
 	}
 
 	return nil
+
+fail:
+	if err := UmountChrootSysfs("/"); err != nil {
+		return fmt.Errorf("failed to unmount sysfs for chroot environment: %w", err)
+	}
+	return fmt.Errorf("failed to initialize chroot environment: %w", err)
 }
 
 func CleanupChrootEnv(targetOs, targetDist, targetArch string) error {
