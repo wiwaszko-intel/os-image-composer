@@ -139,8 +139,8 @@ func updateBootConfigTemplate(installRoot, rootDevID, bootUUID, bootPrefix strin
 			return fmt.Errorf("failed to copy boot configuration file: %w", err)
 		}
 	case "systemd-boot":
-		configAssetPath = filepath.Join(configDir, "image", "efi", "bootParams.cfg")
-		configFinalPath = filepath.Join(installRoot, "boot", "cmdline.cfg")
+		configAssetPath = filepath.Join(configDir, "image", "efi", "bootParams.conf")
+		configFinalPath = filepath.Join(installRoot, "boot", "cmdline.conf")
 		if err = copyFile(configAssetPath, configFinalPath); err != nil {
 			return fmt.Errorf("failed to copy boot configuration file: %w", err)
 		}
