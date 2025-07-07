@@ -65,14 +65,6 @@ func UmountChrootSysfs(chrootPath string) error {
 		return fmt.Errorf("failed to stop GPG components in chroot environment: %w", err)
 	}
 
-	if err := CheckOpenFile(chrootHostPath); err != nil {
-		return fmt.Errorf("failed to check open files in chroot environment: %w", err)
-	}
-
-	if err := CheckUsedMountPoint(chrootHostPath); err != nil {
-		return fmt.Errorf("failed to check open processes in chroot environment: %w", err)
-	}
-
 	if err = mount.UmountSysfs(chrootHostPath); err != nil {
 		return fmt.Errorf("failed to unmount sysfs for %s: %w", chrootHostPath, err)
 	}
