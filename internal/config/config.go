@@ -99,6 +99,7 @@ var (
 	TargetArch      string
 	TargetImageType string
 	ProviderId      string
+	FullPkgList     []string
 )
 
 // LoadTemplate loads an ImageTemplate from the specified YAML template path
