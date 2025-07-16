@@ -24,7 +24,7 @@ jobs:
             echo "validate.sh not found!"
             exit 1
           fi
-          chmod +x build-tester.sh
+          chmod +x validate.sh
 
       - name: Run build-tester
         run: |
