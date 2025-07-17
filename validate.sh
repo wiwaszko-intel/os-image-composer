@@ -27,7 +27,8 @@ run_qemu_boot_test() {
   fi
 
   echo "Current working dir: $(pwd)"
-  touch '$LOGFILE' && chmod 666 '$LOGFILE'
+  #touch '$LOGFILE' && chmod 666 '$LOGFILE'
+  sudo bash -c "touch '$LOGFILE' && chmod 666 '$LOGFILE'"
 
   nohup qemu-system-x86_64 \
       -m 2048 \
