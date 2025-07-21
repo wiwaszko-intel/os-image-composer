@@ -10,6 +10,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Update apt and fix mirrors
+        run: |
+          sudo rm -f /etc/apt/apt-mirrors.txt || true
+          sudo apt-get update
       - name: Install QEMU
         run: sudo apt-get install -y qemu-system-x86 ovmf
       - name: Show /usr/share folder structure
