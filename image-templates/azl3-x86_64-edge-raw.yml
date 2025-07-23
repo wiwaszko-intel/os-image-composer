@@ -19,6 +19,11 @@ systemConfig:
   immutability:
     enabled: true # default is false
 
+  # User Configuration
+  users:
+    - name: user
+      password: user # TODO: Replace with hashed password
+
   # Package Configuration
   packages:
     # Additional packages beyond the base system
