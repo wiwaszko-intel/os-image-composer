@@ -1,6 +1,9 @@
 name: PR Tester
 
 on:
+  push:
+    branches:
+      - PR_tester_workflow_rpandya28
   pull_request:
     types: [opened, reopened, synchronize]
     branches:
