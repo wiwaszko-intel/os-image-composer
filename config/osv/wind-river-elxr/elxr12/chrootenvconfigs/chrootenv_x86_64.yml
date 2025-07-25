@@ -1,4 +1,30 @@
 packages:
+  # Essential packages
+  - base-files
+  - base-passwd
+  - bash
+  - dash
+  - dpkg
+  - libc-bin
+  # Required packages
+  - coreutils
+  - debianutils
+  - diffutils
+  - e2fsprogs
+  - findutils
+  - grep
+  - gzip
+  - hostname
+  - init
+  - login
+  - mount
+  - ncurses-base
+  - ncurses-bin
+  - perl-base
+  - sed
+  - tar
+  - util-linux
+
   - arch-test
   - mmdebstrap
   - bubblewrap

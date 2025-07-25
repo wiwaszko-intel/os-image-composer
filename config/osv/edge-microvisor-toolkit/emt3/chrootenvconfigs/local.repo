@@ -1,6 +1,6 @@
 [cache-repo]
 name=Local Cache Repo
-baseurl=file:///workspace/cache-repo
+baseurl=file:///cdrom/cache-repo
 enabled=1
 gpgcheck=0
 skip_if_unavailable=1

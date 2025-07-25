@@ -125,14 +125,26 @@ func UpdateChrootLocalRPMRepo(chrootRepoDir string) error {
 	if _, err = shell.ExecCmd(cmd, true, ChrootEnvRoot, nil); err != nil {
 		return fmt.Errorf("failed to update chroot local cache repository: %w", err)
 	}
-	cmd = "tdnf makecache --releasever 3.0"
-	if _, err = shell.ExecCmdWithStream(cmd, true, ChrootEnvRoot, nil); err != nil {
-		return fmt.Errorf("failed to refresh cache for chroot repository: %w", err)
-	}
 	return nil
 }
 
-func initChrootLocalRPMRepo() error {
+func UpdateChrootLocalDebRepo(chrootRepoDir string) error {
+	chrootHostPath, err := GetChrootEnvHostPath(chrootRepoDir)
+	if err != nil {
+		return fmt.Errorf("failed to get chroot host path for %s: %w", chrootRepoDir, err)
+	}
+	if _, err := os.Stat(chrootHostPath); os.IsNotExist(err) {
+		return fmt.Errorf("chroot repo directory not existing%s: %w", chrootHostPath, err)
+	}
+	cmd := fmt.Sprintf("dpkg-scanpackages %s /dev/null | gzip -9c > %s/Packages.gz", chrootRepoDir, chrootHostPath)
+	if _, err = shell.ExecCmd(cmd, true, ChrootEnvRoot, nil); err != nil {
+		return fmt.Errorf("failed to update chroot local cache repository: %w", err)
+	}
+
+	return nil
+}
+
+func initChrootLocalRepo(targetOs string) error {
 	globalCacheDir, err := config.CacheDir()
 	if err != nil {
 		return fmt.Errorf("failed to get global cache directory: %v", err)
@@ -144,36 +156,74 @@ func initChrootLocalRPMRepo() error {
 	}
 
 	// From local.repo
-	chrootRepoDir := filepath.Join("/workspace", "cache-repo")
+	chrootRepoDir := filepath.Join("/cdrom", "cache-repo")
 
 	if err := MountChrootPath(pkgCacheDir, chrootRepoDir, "--bind"); err != nil {
 		return fmt.Errorf("failed to mount package cache directory %s to chroot repo directory %s: %w",
 			pkgCacheDir, chrootRepoDir, err)
 	}
-	if err := UpdateChrootLocalRPMRepo(chrootRepoDir); err != nil {
-		return fmt.Errorf("failed to update chroot local cache repository %s: %w", chrootRepoDir, err)
+
+	pkgType := getTaRgetOsPkgType(targetOs)
+	if pkgType == "rpm" {
+		if err := UpdateChrootLocalRPMRepo(chrootRepoDir); err != nil {
+			return fmt.Errorf("failed to update chroot local cache repository %s: %w", chrootRepoDir, err)
+		}
+
+		cmd := "tdnf makecache --releasever 3.0"
+		if _, err = shell.ExecCmdWithStream(cmd, true, ChrootEnvRoot, nil); err != nil {
+			return fmt.Errorf("failed to refresh cache for chroot repository: %w", err)
+		}
+	} else if pkgType == "deb" {
+		if err := UpdateChrootLocalDebRepo(chrootRepoDir); err != nil {
+			return fmt.Errorf("failed to update chroot local cache repository %s: %w", chrootRepoDir, err)
+		}
+
+		cmd := "apt-get update"
+		if _, err = shell.ExecCmdWithStream(cmd, true, ChrootEnvRoot, nil); err != nil {
+			return fmt.Errorf("failed to refresh cache for chroot repository: %w", err)
+		}
+	} else {
+		return fmt.Errorf("unsupported package type: %s", pkgType)
 	}
 	return nil
 }
 
-func createChrootRPMRepo(targetOs, targetDist string) error {
-	targetOsConfigDir, err := file.GetTargetOsConfigDir(targetOs, targetDist)
+func createChrootRepo(targetOs, targetDist string) error {
+	var chrootRepoCongfigPath string
+	pkgType := getTaRgetOsPkgType(targetOs)
+	chrootConfigDir, err := GetChrootConfigDir(targetOs, targetDist)
 	if err != nil {
-		return fmt.Errorf("failed to get target OS config directory: %v", err)
-	}
-	chrootRepoCongfigPath := filepath.Join(targetOsConfigDir, "chrootenvconfigs", "local.repo")
-	if _, err := os.Stat(chrootRepoCongfigPath); os.IsNotExist(err) {
-		return fmt.Errorf("chroot repo config file does not exist: %s", chrootRepoCongfigPath)
+		return fmt.Errorf("failed to get chroot config directory: %v", err)
 	}
 
-	err = CopyFileFromHostToChroot(chrootRepoCongfigPath, "/etc/yum.repos.d/")
-	if err != nil {
-		return fmt.Errorf("failed to copy local.repo: %w", err)
+	if pkgType == "rpm" {
+		chrootRepoCongfigPath = filepath.Join(chrootConfigDir, "local.repo")
+		if _, err := os.Stat(chrootRepoCongfigPath); os.IsNotExist(err) {
+			return fmt.Errorf("chroot repo config file does not exist: %s", chrootRepoCongfigPath)
+		}
+
+		err = CopyFileFromHostToChroot(chrootRepoCongfigPath, "/etc/yum.repos.d/")
+		if err != nil {
+			return fmt.Errorf("failed to copy local.repo: %w", err)
+		}
+	} else if pkgType == "deb" {
+		chrootRepoCongfigPath = filepath.Join(chrootConfigDir, "local.list")
+		if _, err := os.Stat(chrootRepoCongfigPath); os.IsNotExist(err) {
+			return fmt.Errorf("chroot repo config file does not exist: %s", chrootRepoCongfigPath)
+		}
+
+		err = CopyFileFromHostToChroot(chrootRepoCongfigPath, "/etc/apt/sources.list.d")
+		if err != nil {
+			return fmt.Errorf("failed to copy local.repo: %w", err)
+		}
+	} else {
+		return fmt.Errorf("unsupported package type: %s", pkgType)
 	}
 
-	if err := initChrootLocalRPMRepo(); err != nil {
-		return fmt.Errorf("failed to initialize chroot local RPM repository: %w", err)
+	if err := initChrootLocalRepo(targetOs); err != nil {
+		return fmt.Errorf("failed to initialize chroot local repository: %w", err)
 	}
+
 	return nil
 }
 
@@ -242,15 +292,15 @@ func InitChrootEnv(targetOs, targetDist, targetArch string) error {
 	}
 
 	if !chrootRootfsExist {
-		// Create chroot RPM repository
-		if err = createChrootRPMRepo(targetOs, targetDist); err != nil {
-			err = fmt.Errorf("failed to create chroot RPM repository: %w", err)
+		// Create chroot repository
+		if err = createChrootRepo(targetOs, targetDist); err != nil {
+			err = fmt.Errorf("failed to create chroot repository: %w", err)
 			goto fail
 		}
 	} else {
 		// If the chroot environment already exists, update the local RPM repository
-		if err = initChrootLocalRPMRepo(); err != nil {
-			err = fmt.Errorf("failed to initialize chroot local RPM repository: %w", err)
+		if err = initChrootLocalRepo(targetOs); err != nil {
+			err = fmt.Errorf("failed to initialize chroot local repository: %w", err)
 			goto fail
 		}
 	}
