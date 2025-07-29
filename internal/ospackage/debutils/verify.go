@@ -136,6 +136,7 @@ func VerifyDEBs(paths []string, pkgChecksum map[string]string, workers int) []Re
 				bar.Describe("verifying " + name)
 
 				start := time.Now()
+
 				err := verifyWithGoDeb(debPath, pkgChecksum)
 				ok := err == nil
 
@@ -175,7 +176,6 @@ func VerifyDEBs(paths []string, pkgChecksum map[string]string, workers int) []Re
 func verifyWithGoDeb(deb string, pkgChecksum map[string]string) error {
 
 	checksum := getChecksumByName(pkgChecksum, deb)
-	// fmt.Printf("File: %s, Checksum: %s\n", deb, checksum)
 
 	// Here you would implement the actual checksum verification logic
 	if checksum == "NOT FOUND" {
@@ -195,19 +195,9 @@ func verifyWithGoDeb(deb string, pkgChecksum map[string]string) error {
 }
 
 func getChecksumByName(pkgChecksum map[string]string, deb string) string {
-
-	// Extract the base file name without directory and version
-	// Example: "apt-config-icons-large-hidpi_0.16.1-2_all.deb" -> "apt-config-icons-large-hidpi"
 	base := filepath.Base(deb)
-	name := base
-	if idx := strings.Index(base, "_"); idx != -1 {
-		name = base[:idx]
-	}
-
-	for k, v := range pkgChecksum {
-		if name == k {
-			return v
-		}
+	if checksum, ok := pkgChecksum[base]; ok {
+		return checksum
 	}
 	return "NOT FOUND"
 }

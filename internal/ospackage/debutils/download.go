@@ -111,10 +111,10 @@ func Resolve(req []ospackage.PackageInfo, all []ospackage.PackageInfo) ([]ospack
 		log.Debugf("-> %s", filepath.Base(pkg.URL))
 	}
 
-	// Adding needed packages to the pkgChecksum list
-	for _, pkg := range needed {
+	// Adding full packages to the pkgChecksum list
+	for _, pkg := range all {
 		PkgChecksum = append(PkgChecksum, pkgChecksum{
-			Name:     pkg.Name,
+			Name:     filepath.Base(pkg.URL),
 			Checksum: pkg.Checksum,
 		})
 	}
