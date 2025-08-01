@@ -35,7 +35,7 @@ type DiskConfig struct {
 	Partitions         []PartitionInfo `yaml:"partitions"`
 }
 
-// ImageTemplate represents the YAML image template structure
+// ImageTemplate represents the YAML image template structure (unchanged)
 type ImageTemplate struct {
 	Image        ImageInfo    `yaml:"image"`
 	Target       TargetInfo   `yaml:"target"`
@@ -48,10 +48,16 @@ type Bootloader struct {
 	Provider string `yaml:"provider"` // Provider: bootloader provider (e.g., "grub2", "systemd-boot")
 }
 
+// ImmutabilityConfig holds the immutability configuration
+type ImmutabilityConfig struct {
+	Enabled bool `yaml:"enabled"` // Enabled: whether immutability is enabled (default: false)
+}
+
 // SystemConfig represents a system configuration within the template
 type SystemConfig struct {
 	Name            string               `yaml:"name"`
 	Description     string               `yaml:"description"`
+	Immutability    ImmutabilityConfig   `yaml:"immutability,omitempty"`
 	Bootloader      Bootloader           `yaml:"bootloader"`
 	Packages        []string             `yaml:"packages"`
 	AdditionalFiles []AdditionalFileInfo `yaml:"additionalFiles"`
@@ -224,4 +230,24 @@ func (t *ImageTemplate) GetSystemConfigName() string {
 
 func SaveUpdatedConfigFile(path string, config *ImageTemplate) error {
 	return nil
+}
+
+// GetImmutability returns the immutability configuration from systemConfig
+func (t *ImageTemplate) GetImmutability() ImmutabilityConfig {
+	return t.SystemConfig.Immutability
+}
+
+// IsImmutabilityEnabled returns whether immutability is enabled
+func (t *ImageTemplate) IsImmutabilityEnabled() bool {
+	return t.SystemConfig.Immutability.Enabled
+}
+
+// GetImmutability returns the immutability configuration (SystemConfig method)
+func (sc *SystemConfig) GetImmutability() ImmutabilityConfig {
+	return sc.Immutability
+}
+
+// IsImmutabilityEnabled returns whether immutability is enabled (SystemConfig method)
+func (sc *SystemConfig) IsImmutabilityEnabled() bool {
+	return sc.Immutability.Enabled
 }

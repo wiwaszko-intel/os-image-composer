@@ -288,3 +288,120 @@ func TestDiskAndSystemConfigGetters(t *testing.T) {
 		t.Errorf("expected bootloader provider 'grub2', got %s", bootloaderConfig.Provider)
 	}
 }
+
+func TestLoadYAMLTemplateWithImmutability(t *testing.T) {
+	// Create a temporary YAML file with immutability configuration under systemConfig
+	yamlContent := `image:
+  name: azl3-x86_64-edge
+  version: "1.0.0"
+
+target:
+  os: azure-linux
+  dist: azl3
+  arch: x86_64
+  imageType: raw
+
+systemConfig:
+  name: edge
+  description: Default yml configuration for edge image
+  immutability:
+    enabled: true
+  packages:
+    - openssh-server
+    - docker-ce
+  kernel:
+    version: "6.12"
+    cmdline: "quiet splash"
+`
+
+	tmpFile, err := os.CreateTemp("", "test-*.yml")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.WriteString(yamlContent); err != nil {
+		t.Fatalf("failed to write temp file: %v", err)
+	}
+	tmpFile.Close()
+
+	// Test loading
+	template, err := LoadTemplate(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("failed to load YAML template: %v", err)
+	}
+
+	// Verify immutability configuration
+	if !template.IsImmutabilityEnabled() {
+		t.Errorf("expected immutability to be enabled, got %t", template.IsImmutabilityEnabled())
+	}
+
+	// Test direct access to systemConfig immutability
+	if !template.SystemConfig.IsImmutabilityEnabled() {
+		t.Errorf("expected systemConfig immutability to be enabled, got %t", template.SystemConfig.IsImmutabilityEnabled())
+	}
+}
+
+func TestMergeSystemConfigWithImmutability(t *testing.T) {
+	defaultConfig := SystemConfig{
+		Name:         "default",
+		Immutability: ImmutabilityConfig{Enabled: true},
+		Packages:     []string{"base-package"},
+	}
+
+	userConfig := SystemConfig{
+		Name:         "user",
+		Immutability: ImmutabilityConfig{Enabled: false},
+		Packages:     []string{"user-package"},
+	}
+
+	merged := mergeSystemConfig(defaultConfig, userConfig)
+
+	if merged.Immutability.Enabled != false {
+		t.Errorf("expected merged immutability to be false (user override), got %t", merged.Immutability.Enabled)
+	}
+
+	if merged.Name != "user" {
+		t.Errorf("expected merged name to be 'user', got %s", merged.Name)
+	}
+}
+
+func TestTemplateHelperMethodsWithImmutability(t *testing.T) {
+	template := &ImageTemplate{
+		Image: ImageInfo{
+			Name:    "test-image",
+			Version: "1.0.0",
+		},
+		Target: TargetInfo{
+			OS:        "azure-linux",
+			Dist:      "azl3",
+			Arch:      "x86_64",
+			ImageType: "raw",
+		},
+		SystemConfig: SystemConfig{
+			Name:         "test-config",
+			Description:  "Test configuration",
+			Immutability: ImmutabilityConfig{Enabled: true},
+			Packages:     []string{"package1", "package2"},
+			Kernel: KernelConfig{
+				Version: "6.12",
+				Cmdline: "quiet",
+			},
+		},
+	}
+
+	// Test immutability access methods
+	if !template.IsImmutabilityEnabled() {
+		t.Errorf("expected immutability to be enabled, got %t", template.IsImmutabilityEnabled())
+	}
+
+	immutabilityConfig := template.GetImmutability()
+	if !immutabilityConfig.Enabled {
+		t.Errorf("expected immutability config to be enabled, got %t", immutabilityConfig.Enabled)
+	}
+
+	// Test systemConfig direct access
+	if !template.SystemConfig.IsImmutabilityEnabled() {
+		t.Errorf("expected systemConfig immutability to be enabled, got %t", template.SystemConfig.IsImmutabilityEnabled())
+	}
+}

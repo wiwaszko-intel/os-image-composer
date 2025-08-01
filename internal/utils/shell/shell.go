@@ -59,6 +59,7 @@ var commandMap = map[string]string{
 	"lsblk":              "/usr/bin/lsblk",
 	"losetup":            "/usr/sbin/losetup",
 	"lvcreate":           "/usr/sbin/lvcreate",
+	"mmdebstrap":         "/usr/bin/mmdebstrap",
 	"mkdir":              "/usr/bin/mkdir",
 	"mkfs":               "/usr/sbin/mkfs",
 	"mkswap":             "/usr/sbin/mkswap",

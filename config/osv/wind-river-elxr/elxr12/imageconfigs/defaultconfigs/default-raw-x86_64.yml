@@ -1,10 +1,10 @@
 image:
-  name: azl3-default-x86_64
-  version: "1.0.0"
+  name: minimal-os-image-elxr
+  version: "12.0.0"
 
 target:
-  os: azure-linux # Target OS name
-  dist: azl3 # Target OS distribution
+  os: wind-river-elxr # Target OS name
+  dist: elxr12 # Target OS distribution
   arch: x86_64 # Target OS architecture
   imageType: raw # Image type, valid value: [raw, iso].
 
@@ -62,35 +62,31 @@ systemConfig:
     enabled: false # default is false
 
   packages:
-    - filesystem
-    - kernel
-    - azurelinux-release
-    # hyperv packages
-    - dracut-hyperv
-    - hyperv-daemons
-    # core image packages
-    - shim
-    - systemd-boot
-    - systemd-ukify
+    - linux-image-amd64
     - ca-certificates
-    - cronie-anacron
-    - logrotate
-    - core-packages-base-image
-    - dracut-hostonly
-    - dracut-vrf
-    - initramfs
-    - shadow-utils
-    # cloud-init packages
-    - cloud-init
-    - cloud-utils-growpart
-    # virt guest packages
-    - dracut-hyperv
-    - dracut-virtio
-    - dracut-xen
-    - veritysetup
+    - vim
+    - sudo
+    - net-tools
+    - openssh-client
+    - openssh-server
+    - procps
+    - less
+    - dbus
+    - policykit-1
+    - curl
+    - wget
+    - ostree
+    - ostree-boot
+    - python3-apt-ostree
+    - uefi-ext4
+    - systemd-resolved
+    - cloud-guest-utils
+    - xterm
+    - dracut
+    - systemd-boot
 
   kernel:
     name: kernel
-    version: 6.6
-    cmdline: "console=ttyS0,115200 console=tty0 loglevel=7"
+    version: 6.12
+    cmdline: "quiet splash console=ttyS0,115200 console=tty0 loglevel=7"
     uki: true

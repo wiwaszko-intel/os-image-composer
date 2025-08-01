@@ -11,6 +11,7 @@ import (
 	"github.com/open-edge-platform/image-composer/internal/config"
 	"github.com/open-edge-platform/image-composer/internal/ospackage"
 	"github.com/open-edge-platform/image-composer/internal/ospackage/pkgfetcher"
+	"github.com/open-edge-platform/image-composer/internal/ospackage/pkgsorter"
 	"github.com/open-edge-platform/image-composer/internal/utils/logger"
 )
 
@@ -107,13 +108,13 @@ func Resolve(req []ospackage.PackageInfo, all []ospackage.PackageInfo) ([]ospack
 	log.Infof("need a total of %d DEBs (including dependencies)", len(needed))
 
 	for _, pkg := range needed {
-		log.Debugf("-> %s", pkg.Name)
+		log.Debugf("-> %s", filepath.Base(pkg.URL))
 	}
 
-	// Adding needed packages to the pkgChecksum list
-	for _, pkg := range needed {
+	// Adding full packages to the pkgChecksum list
+	for _, pkg := range all {
 		PkgChecksum = append(PkgChecksum, pkgChecksum{
-			Name:     pkg.Name,
+			Name:     filepath.Base(pkg.URL),
 			Checksum: pkg.Checksum,
 		})
 	}
@@ -184,7 +185,7 @@ func DownloadPackages(pkgList []string, destDir string, dotFile string) ([]strin
 	log.Infof("matched a total of %d packages", len(req))
 
 	for _, pkg := range req {
-		log.Debugf("-> %s", pkg.Name)
+		log.Debugf("-> %s", filepath.Base(pkg.URL))
 	}
 
 	// Resolve the dependencies of the requested packages
@@ -194,6 +195,12 @@ func DownloadPackages(pkgList []string, destDir string, dotFile string) ([]strin
 	}
 	log.Infof("resolved %d packages", len(needed))
 
+	sorted_pkgs, err := pkgsorter.SortPackages(needed)
+	if err != nil {
+		log.Errorf("sorting packages: %v", err)
+	}
+	log.Infof("sorted %d packages for installation", len(sorted_pkgs))
+
 	// If a dot file is specified, generate the dependency graph
 	if dotFile != "" {
 		if err := GenerateDot(needed, dotFile); err != nil {
@@ -202,10 +209,10 @@ func DownloadPackages(pkgList []string, destDir string, dotFile string) ([]strin
 	}
 
 	// Extract URLs
-	urls := make([]string, len(needed))
-	for i, pkg := range needed {
+	urls := make([]string, len(sorted_pkgs))
+	for i, pkg := range sorted_pkgs {
 		urls[i] = pkg.URL
-		downloadPkgList = append(downloadPkgList, pkg.Name)
+		downloadPkgList = append(downloadPkgList, filepath.Base(pkg.URL))
 	}
 
 	// Ensure dest directory exists

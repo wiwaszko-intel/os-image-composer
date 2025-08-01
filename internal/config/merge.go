@@ -104,7 +104,7 @@ func MergeConfigurations(userTemplate, defaultTemplate *ImageTemplate) (*ImageTe
 		log.Debugf("User disk config overrides default")
 	}
 
-	// System configuration - merge intelligently
+	// System configuration - merge intelligently (includes immutability)
 	if !isEmptySystemConfig(userTemplate.SystemConfig) {
 		mergedTemplate.SystemConfig = mergeSystemConfig(defaultTemplate.SystemConfig, userTemplate.SystemConfig)
 		log.Debugf("Merged system config: %s", mergedTemplate.SystemConfig.Name)
@@ -122,8 +122,8 @@ func MergeConfigurations(userTemplate, defaultTemplate *ImageTemplate) (*ImageTe
 		}
 	}
 
-	log.Debugf("Merged template: name=%s, systemConfig=%s",
-		mergedTemplate.Image.Name, mergedTemplate.SystemConfig.Name)
+	log.Debugf("Merged template: name=%s, systemConfig=%s, immutability=%t",
+		mergedTemplate.Image.Name, mergedTemplate.SystemConfig.Name, mergedTemplate.IsImmutabilityEnabled())
 
 	return &mergedTemplate, nil
 }
@@ -140,6 +140,9 @@ func mergeSystemConfig(defaultConfig, userConfig SystemConfig) SystemConfig {
 		merged.Description = userConfig.Description
 	}
 
+	// Merge immutability config
+	merged.Immutability = mergeImmutabilityConfig(defaultConfig.Immutability, userConfig.Immutability)
+
 	// Merge bootloader config
 	if !isEmptyBootloader(userConfig.Bootloader) {
 		merged.Bootloader = mergeBootloader(defaultConfig.Bootloader, userConfig.Bootloader)
@@ -152,6 +155,20 @@ func mergeSystemConfig(defaultConfig, userConfig SystemConfig) SystemConfig {
 
 	// Merge kernel config
 	merged.Kernel = mergeKernelConfig(defaultConfig.Kernel, userConfig.Kernel)
+
+	return merged
+}
+
+// mergeImmutabilityConfig merges immutability configurations
+func mergeImmutabilityConfig(defaultImmutability, userImmutability ImmutabilityConfig) ImmutabilityConfig {
+	merged := defaultImmutability // Start with default
+
+	// User configuration takes precedence
+	// If user explicitly sets enabled (either true or false), use that value
+	// Otherwise, keep the default value
+	if userImmutability.Enabled != defaultImmutability.Enabled {
+		merged.Enabled = userImmutability.Enabled
+	}
 
 	return merged
 }
