@@ -53,3 +53,23 @@ You should see the usage instructions for `ukify`.
 
 ---
 
+## mmdebstrap
+1.Download the package:
+
+```bash
+wget http://archive.ubuntu.com/ubuntu/pool/universe/m/mmdebstrap/mmdebstrap_1.4.3-6_all.deb
+```
+
+2.Install the package:
+
+```bash
+sudo dpkg -i mmdebstrap_1.4.3-6_all.deb
+```
+
+3.Resolve dependencies (if necessary):
+If dpkg reports missing dependencies, you can try to automatically resolve them using:
+
+
+```bash
+sudo apt --fix-broken install
+```
