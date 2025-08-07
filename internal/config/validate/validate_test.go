@@ -118,7 +118,6 @@ systemConfig:
     name: kernel
     version: "6.12"
     cmdline: "quiet splash"
-    uki: true
 `
 
 	// Parse to generic JSON interface
