@@ -79,6 +79,7 @@ func MergeConfigurations(userTemplate, defaultTemplate *ImageTemplate) (*ImageTe
 		return nil, fmt.Errorf("user template cannot be nil")
 	}
 
+	// If no default template, use user template as-is
 	if defaultTemplate == nil {
 		log.Warn("Default template is nil, using user template as-is")
 		return userTemplate, nil
@@ -96,19 +97,21 @@ func MergeConfigurations(userTemplate, defaultTemplate *ImageTemplate) (*ImageTe
 		mergedTemplate.Image.Version = userTemplate.Image.Version
 	}
 
-	// Target section - always use user values (these should be consistent)
 	mergedTemplate.Target = userTemplate.Target
 
-	// Disk configuration - simple override if user provides one
+	// Disk configuration - user override if provided
 	if !isEmptyDiskConfig(userTemplate.Disk) {
 		mergedTemplate.Disk = userTemplate.Disk
 		log.Debugf("User disk config overrides default")
 	}
 
-	// System configuration - merge intelligently (includes immutability)
+	// System configuration - merge intelligently
 	if !isEmptySystemConfig(userTemplate.SystemConfig) {
 		mergedTemplate.SystemConfig = mergeSystemConfig(defaultTemplate.SystemConfig, userTemplate.SystemConfig)
 		log.Debugf("Merged system config: %s", mergedTemplate.SystemConfig.Name)
+	} else {
+		// Use default system config if user didn't provide one
+		mergedTemplate.SystemConfig = defaultTemplate.SystemConfig
 	}
 
 	log.Infof("Successfully merged user and default configurations")
@@ -325,8 +328,10 @@ func mergePackages(defaultPackages, userPackages []string) []string {
 }
 
 // mergeKernelConfig merges kernel configurations
+// Note: User KernelConfig only has Version and Cmdline, but merged config
+// can include additional fields (name, uki) from defaults
 func mergeKernelConfig(defaultKernel, userKernel KernelConfig) KernelConfig {
-	merged := defaultKernel // Start with default
+	merged := defaultKernel // Start with default (may include name, uki)
 
 	// Override with user values where provided
 	if userKernel.Version != "" {
@@ -335,6 +340,7 @@ func mergeKernelConfig(defaultKernel, userKernel KernelConfig) KernelConfig {
 	if userKernel.Cmdline != "" {
 		merged.Cmdline = userKernel.Cmdline
 	}
+	// Note: name and uki fields come from defaults and are preserved
 
 	return merged
 }
@@ -371,6 +377,7 @@ func LoadAndMergeTemplate(templatePath string) (*ImageTemplate, error) {
 	// Load the appropriate default configuration
 	defaultTemplate, err := loader.LoadDefaultConfig(userTemplate.Target.ImageType)
 	if err != nil {
+		log.Debugf("Default template: %+v", defaultTemplate)
 		log.Warnf("Could not load default configuration: %v", err)
 		log.Info("Proceeding with user template only")
 		return userTemplate, nil
