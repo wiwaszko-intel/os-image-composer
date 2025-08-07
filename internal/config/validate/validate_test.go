@@ -115,7 +115,6 @@ systemConfig:
     - kernel
     - systemd
   kernel:
-    name: kernel
     version: "6.12"
     cmdline: "quiet splash"
 `
