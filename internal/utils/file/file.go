@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/open-edge-platform/image-composer/internal/config"
 	"github.com/open-edge-platform/image-composer/internal/utils/shell"
 	"gopkg.in/yaml.v3"
 )
@@ -68,17 +69,42 @@ func Read(filePath string) (string, error) {
 }
 
 func Write(data, dst string) error {
-	cmdStr := fmt.Sprintf("echo -e '%s' | sudo tee %s", data, dst)
-	if _, err := shell.ExecCmd(cmdStr, true, "", nil); err != nil {
-		return fmt.Errorf("failed to write %s to file %s: %w", data, dst, err)
+	tmpFile, err := os.CreateTemp(config.TempDir(), "filewrite-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary file: %w", err)
 	}
-	return nil
+	tmpPath := tmpFile.Name()
+	defer os.Remove(tmpPath) // Ensure temp file is removed after use
+
+	// Write data to temp file
+	if _, err := tmpFile.WriteString(data); err != nil {
+		tmpFile.Close()
+		return fmt.Errorf("failed to write to temporary file: %w", err)
+	}
+	tmpFile.Close()
+
+	return CopyFile(tmpPath, dst, "", true)
 }
 
 func Append(data, dst string) error {
-	cmdStr := fmt.Sprintf("echo -e '%s' | sudo tee -a %s", data, dst)
-	if _, err := shell.ExecCmd(cmdStr, true, "", nil); err != nil {
-		return fmt.Errorf("failed to append %s to file %s: %w", data, dst, err)
+	tmpFile, err := os.CreateTemp(config.TempDir(), "fileappend-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+	defer os.Remove(tmpPath) // Ensure temp file is removed after use
+
+	// Write data to temp file
+	if _, err := tmpFile.WriteString(data); err != nil {
+		tmpFile.Close()
+		return fmt.Errorf("failed to write to temporary file: %w", err)
+	}
+	tmpFile.Close()
+
+	// Use a safer approach with shell.ExecCmd that avoids command injection
+	cmdStr := fmt.Sprintf("cat %s | sudo tee -a %s >/dev/null", tmpPath, dst)
+	if _, err := shell.ExecCmd(cmdStr, false, "", nil); err != nil {
+		return fmt.Errorf("failed to append content to %s: %w", dst, err)
 	}
 	return nil
 }
