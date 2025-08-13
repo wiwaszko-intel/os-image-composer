@@ -100,8 +100,10 @@ build_elxr12_image() {
   if echo "$output" | grep -q "image build completed successfully"; then
   echo "ELXR12 raw Image build passed."
   else
+    echo "$output"
     echo "ELXR12 raw Image build failed."
-    exit 1 # Exit with error if build fails
+    echo "$output"    # Add this line
+    exit 1
   fi
 }
 
