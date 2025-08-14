@@ -146,11 +146,11 @@ build_elxr12_iso_image() {
   fi
 }
 
+build_elxr12_raw_image
 build_azl3_raw_image
 build_azl3_iso_image
 build_emt3_raw_image
 build_emt3_iso_image
-#build_elxr12_raw_image
 build_elxr12_iso_image
 
 # # Check for the success message in the output
