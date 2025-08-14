@@ -109,10 +109,12 @@ func (p *eLxr) PostProcess(template *config.ImageTemplate, err error) error {
 func (p *eLxr) installHostDependency() error {
 	log := logger.Logger()
 	var depedencyInfo = map[string]string{
-		"mmdebstrap": "mmdebstrap",    // For the chroot env build
-		"mkfs.fat":   "dosfstools",    // For the FAT32 boot partition creation
-		"xorriso":    "xorriso",       // For ISO image creation
-		"ukify":      "systemd-ukify", // For the UKI image creation
+		"mmdebstrap":        "mmdebstrap",    // For the chroot env build
+		"mkfs.fat":          "dosfstools",    // For the FAT32 boot partition creation
+		"xorriso":           "xorriso",       // For ISO image creation
+		"ukify":             "systemd-ukify", // For the UKI image creation
+		"grub-mkstandalone": "grub-common",   // For ISO image UEFI Grub binary creation
+		"veritysetup":       "cryptsetup",    // For the veritysetup command
 	}
 	hostPkgManager, err := chroot.GetHostOsPkgManager()
 	if err != nil {

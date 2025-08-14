@@ -108,6 +108,7 @@ var commandMap = map[string]string{
 	"groups":             "/usr/bin/groups",
 	"passwd":             "/usr/bin/passwd",
 	"mv":                 "/usr/bin/mv",
+	"grub-mkstandalone":  "/usr/bin/grub-mkstandalone",
 	// Add more mappings as needed
 }
 
