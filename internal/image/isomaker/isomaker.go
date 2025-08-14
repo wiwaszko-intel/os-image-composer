@@ -224,7 +224,7 @@ func createISO(template *config.ImageTemplate, initrdRootfsPath, initrdFilePath,
 		return fmt.Errorf("failed to create GRUB configuration: %v", err)
 	}
 
-	pkgType := chroot.GetTaRgetOsPkgType(config.TargetOs)
+	pkgType := chroot.GetTargetOsPkgType(config.TargetOs)
 	switch pkgType {
 	case "deb":
 		// Create standalone grub efi
