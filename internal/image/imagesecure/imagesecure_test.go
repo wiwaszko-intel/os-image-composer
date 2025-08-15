@@ -158,36 +158,6 @@ func checkRootHasROOption(fstabContent string) bool {
 	return false
 }
 
-// Helper function to validate that non-root mount points weren't modified
-func validateOtherMountPointsUnchanged(t *testing.T, original, modified string) {
-	originalLines := strings.Split(original, "\n")
-	modifiedLines := strings.Split(modified, "\n")
-
-	for i, originalLine := range originalLines {
-		if i >= len(modifiedLines) {
-			break
-		}
-
-		originalLine = strings.TrimSpace(originalLine)
-		modifiedLine := strings.TrimSpace(modifiedLines[i])
-
-		// Skip comments and empty lines
-		if originalLine == "" || strings.HasPrefix(originalLine, "#") {
-			continue
-		}
-
-		fields := strings.Fields(originalLine)
-		if len(fields) >= 4 && fields[1] != "/" {
-			// This is a non-root mount point, should be unchanged
-			if originalLine != modifiedLine {
-				t.Errorf("Non-root mount point was unexpectedly modified:")
-				t.Logf("Original: %s", originalLine)
-				t.Logf("Modified: %s", modifiedLine)
-			}
-		}
-	}
-}
-
 // Benchmark test for performance
 func BenchmarkConfigImageSecurity(b *testing.B) {
 	tempDir := b.TempDir()
@@ -199,7 +169,9 @@ func BenchmarkConfigImageSecurity(b *testing.B) {
 
 	// Create test fstab
 	etcDir := filepath.Join(tempDir, "etc")
-	os.MkdirAll(etcDir, 0755)
+	if err := os.MkdirAll(etcDir, 0755); err != nil {
+		b.Fatalf("Failed to create etc directory: %v", err)
+	}
 	fstabPath := filepath.Join(etcDir, "fstab")
 
 	fstabContent := `UUID=12345678-1234-1234-1234-123456789012 /               ext4    defaults        1       1
@@ -207,7 +179,11 @@ UUID=87654321-4321-4321-4321-210987654321 /boot           ext4    defaults      
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		os.WriteFile(fstabPath, []byte(fstabContent), 0644)
-		imagesecure.ConfigImageSecurity(tempDir, template)
+		if err := os.WriteFile(fstabPath, []byte(fstabContent), 0644); err != nil {
+			b.Fatalf("Failed to write fstab: %v", err)
+		}
+		if err := imagesecure.ConfigImageSecurity(tempDir, template); err != nil {
+			b.Fatalf("ConfigImageSecurity failed: %v", err)
+		}
 	}
 }
