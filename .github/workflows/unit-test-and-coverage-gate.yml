@@ -142,7 +142,7 @@ jobs:
               echo ""
               echo "Packages by coverage (lowest first):"
               echo '```'
-              head -n 20 coverage_packages.txt || true
+              head -n 50 coverage_packages.txt || true
               echo '```'
             fi
             echo ""
