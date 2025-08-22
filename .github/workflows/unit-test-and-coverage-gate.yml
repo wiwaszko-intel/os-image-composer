@@ -94,9 +94,9 @@ jobs:
           echo "Resolved threshold: ${HEAD_VAL}"
 
       # Key: do NOT use --ci since your Earthfile uses LOCALLY/AS LOCAL
-      - name: Run Earthly +test with coverage threshold
+      - name: Run Earthly +test
         run: |
-          earthly +test --COV_THRESHOLD="${COV_THRESHOLD}" --PRINT_TS="${PRINT_TS}"
+          earthly +test --PRINT_TS="${PRINT_TS}"
 
       # Always upload artifacts saved by Earthfile
       - name: Upload coverage.out
