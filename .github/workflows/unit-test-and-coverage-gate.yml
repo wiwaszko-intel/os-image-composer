@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [ main ]          # Gate PRs into main
   push:
-    branches: [ main ]          # (Optional) also run on direct pushes
+    branches: [ main ]          # also run on direct pushes
   workflow_dispatch:             # Manual runs
     inputs:
       ref:
@@ -125,42 +125,3 @@ jobs:
             echo "**Threshold used:** ${COV_THRESHOLD}%"
             echo "**Build ID:** ${PRINT_TS}"
           } >> "$GITHUB_STEP_SUMMARY"
-
-  # Optional: Add debug test job for troubleshooting
-  run-earthly-tests-debug:
-    name: Run earthly +test-debug (on failure)
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    if: failure() && github.event_name == 'workflow_dispatch'
-    needs: run-earthly-tests
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ inputs.ref != '' && inputs.ref || (github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha) }}
-
-      - name: Setup Earthly
-        uses: earthly/actions/setup-earthly@v1
-        with:
-          version: "latest"
-
-      - name: Run Earthly +test-debug with enhanced output
-        env:
-          COV_THRESHOLD: ${{ inputs.cov_threshold || '12.3' }}
-          PRINT_TS: ${{ github.run_id }}
-          FAIL_ON_NO_TESTS: "false"
-        run: |
-          earthly +test-debug --COV_THRESHOLD="${COV_THRESHOLD}" --PRINT_TS="${PRINT_TS}" --FAIL_ON_NO_TESTS="${FAIL_ON_NO_TESTS}"
-
-      - name: Upload debug artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug-coverage-artifacts
-          path: |
-            coverage.out
-            coverage_total.txt
-            coverage_packages.txt
-            test_raw.log
