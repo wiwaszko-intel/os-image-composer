@@ -89,7 +89,6 @@ test:
 # Additional test targets for convenience
 test-debug:
     FROM +golang-base
-    ARG COV_THRESHOLD=75
     ARG PRINT_TS=""
     ARG FAIL_ON_NO_TESTS=false
     
@@ -103,7 +102,7 @@ test-debug:
     RUN chmod +x /work/scripts/run_coverage_tests.sh
     
     # Run the coverage tests with debug output
-    RUN cd /work && ./scripts/run_coverage_tests.sh "${COV_THRESHOLD}" "${PRINT_TS}" "${FAIL_ON_NO_TESTS}" "true"
+    RUN cd /work && ./scripts/run_coverage_tests.sh "${PRINT_TS}" "${FAIL_ON_NO_TESTS}" "true"
     
     # Save all generated artifacts locally
     SAVE ARTIFACT coverage.out AS LOCAL ./coverage.out
