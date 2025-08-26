@@ -2,6 +2,7 @@ package debutils
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,6 +29,7 @@ type RepoConfig struct {
 	ReleaseFile  string
 	ReleaseSign  string
 	BuildPath    string // path to store builds, relative to the root of the repo
+	Arch         string // architecture, e.g., amd64, all
 }
 
 type pkgChecksum struct {
@@ -36,9 +38,10 @@ type pkgChecksum struct {
 }
 
 var (
-	RepoCfg     RepoConfig
-	PkgChecksum []pkgChecksum
-	GzHref      string
+	RepoCfg      RepoConfig
+	PkgChecksum  []pkgChecksum
+	GzHref       string
+	Architecture string
 )
 
 // Packages returns the list of base packages
@@ -46,7 +49,7 @@ func Packages() ([]ospackage.PackageInfo, error) {
 	log := logger.Logger()
 	log.Infof("fetching packages from %s", RepoCfg.PkgList)
 
-	packages, err := ParseRepositoryMetadata(RepoCfg.PkgPrefix, GzHref, RepoCfg.ReleaseFile, RepoCfg.ReleaseSign, RepoCfg.PbGPGKey, RepoCfg.BuildPath)
+	packages, err := ParseRepositoryMetadata(RepoCfg.PkgPrefix, GzHref, RepoCfg.ReleaseFile, RepoCfg.ReleaseSign, RepoCfg.PbGPGKey, RepoCfg.BuildPath, RepoCfg.Arch)
 	if err != nil {
 		log.Errorf("parsing %s failed: %v", GzHref, err)
 		return nil, err
@@ -81,25 +84,35 @@ func UserPackages() ([]ospackage.PackageInfo, error) {
 		codename := repoItem.codename
 		baseURL := repoItem.url
 		pkey := repoItem.pkey
-		repo := RepoConfig{
-			PkgList:      baseURL + "/dists/" + codename + "/main/binary-amd64/Packages.gz",
-			ReleaseFile:  fmt.Sprintf("%s/dists/%s/Release", baseURL, codename),
-			ReleaseSign:  fmt.Sprintf("%s/dists/%s/Release.gpg", baseURL, codename),
-			PkgPrefix:    baseURL,
-			Name:         id,
-			GPGCheck:     true,
-			RepoGPGCheck: true,
-			Enabled:      true,
-			PbGPGKey:     pkey, //fmt.Sprintf("%s/%s", baseURL, pkNm),
-			BuildPath:    "./builds/elxr",
+		archs := Architecture + ",all"
+		for _, arch := range strings.Split(archs, ",") {
+			// check if package list exist for each arch
+			package_list_url := baseURL + "/dists/" + codename + "/main/binary-" + arch + "/Packages.gz"
+			if !checkFileExists(package_list_url) {
+				log.Warnf("package list does not exist for arch %s at %s, skipping", arch, package_list_url)
+				continue
+			}
+			repo := RepoConfig{
+				PkgList:      package_list_url,
+				ReleaseFile:  fmt.Sprintf("%s/dists/%s/Release", baseURL, codename),
+				ReleaseSign:  fmt.Sprintf("%s/dists/%s/Release.gpg", baseURL, codename),
+				PkgPrefix:    baseURL,
+				Name:         id,
+				GPGCheck:     true,
+				RepoGPGCheck: true,
+				Enabled:      true,
+				PbGPGKey:     pkey,
+				BuildPath:    fmt.Sprintf("./builds/elxr_%s", arch),
+				Arch:         arch,
+			}
+			userRepo = append(userRepo, repo)
 		}
-		userRepo = append(userRepo, repo)
 	}
 
 	var allUserPackages []ospackage.PackageInfo
 	for _, rpItx := range userRepo {
 
-		userPkgs, err := ParseRepositoryMetadata(rpItx.PkgPrefix, rpItx.PkgList, rpItx.ReleaseFile, rpItx.ReleaseSign, rpItx.PbGPGKey, rpItx.BuildPath)
+		userPkgs, err := ParseRepositoryMetadata(rpItx.PkgPrefix, rpItx.PkgList, rpItx.ReleaseFile, rpItx.ReleaseSign, rpItx.PbGPGKey, rpItx.BuildPath, rpItx.Arch)
 		if err != nil {
 			log.Errorf("parsing user repo failed: %v %s %s", err, rpItx.ReleaseFile, rpItx.ReleaseSign)
 			continue
@@ -116,6 +129,18 @@ func UserPackages() ([]ospackage.PackageInfo, error) {
 
 	return allUserPackages, nil
 	// return nil, fmt.Errorf("yockgen: dummy error for testing")
+}
+
+// CheckFileExists sends a HEAD request to the given URL and
+// returns true if the file exists (status 200).
+func checkFileExists(url string) bool {
+	resp, err := http.Head(url)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+
+	return resp.StatusCode == http.StatusOK
 }
 
 // Validate verifies the downloaded files

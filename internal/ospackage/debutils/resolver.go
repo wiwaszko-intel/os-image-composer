@@ -19,7 +19,7 @@ func GenerateDot(pkgs []ospackage.PackageInfo, file string) error {
 }
 
 // ParseRepositoryMetadata parses the Packages.gz file from gzHref.
-func ParseRepositoryMetadata(baseURL string, pkggz string, releaseFile string, releaseSign string, pbGPGKey string, buildPath string) ([]ospackage.PackageInfo, error) {
+func ParseRepositoryMetadata(baseURL string, pkggz string, releaseFile string, releaseSign string, pbGPGKey string, buildPath string, arch string) ([]ospackage.PackageInfo, error) {
 	log := logger.Logger()
 
 	// Ensure pkgMetaDir exists, create if not
@@ -60,7 +60,7 @@ func ParseRepositoryMetadata(baseURL string, pkggz string, releaseFile string, r
 	}
 
 	// verify the sham256 checksum of the Packages.gz file
-	pkggzVryResult, err := VerifyPackagegz(localReleaseFile, localPkggzFile)
+	pkggzVryResult, err := VerifyPackagegz(localReleaseFile, localPkggzFile, arch)
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify pkg file: %v", err)
 	}
