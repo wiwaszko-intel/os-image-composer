@@ -18,8 +18,8 @@ func GenerateDot(pkgs []ospackage.PackageInfo, file string) error {
 	return nil
 }
 
-// ParsePrimary parses the Packages.gz file from gzHref.
-func ParsePrimary(baseURL string, pkggz string, releaseFile string, releaseSign string, pbGPGKey string, buildPath string) ([]ospackage.PackageInfo, error) {
+// ParseRepositoryMetadata parses the Packages.gz file from gzHref.
+func ParseRepositoryMetadata(baseURL string, pkggz string, releaseFile string, releaseSign string, pbGPGKey string, buildPath string) ([]ospackage.PackageInfo, error) {
 	log := logger.Logger()
 
 	// Ensure pkgMetaDir exists, create if not
@@ -538,4 +538,76 @@ func CleanDependencyName(dep string) string {
 	}
 
 	return strings.TrimSpace(depName)
+}
+
+// compareVersions compares two Debian package versions
+// Returns 1 if v1 > v2, -1 if v1 < v2, 0 if equal
+func compareVersions(v1, v2 string) int {
+
+	// Extract version from Debian package names like "acct_6.6.4-5+b1_amd64.deb"
+	extractVersion := func(name string) string {
+		// Find first underscore, then take everything until the next underscore
+		parts := strings.Split(name, "_")
+		if len(parts) >= 2 {
+			return parts[1] // This is the version part
+		}
+		return name
+	}
+
+	ver1 := extractVersion(v1)
+	ver2 := extractVersion(v2)
+
+	// Simple string comparison works for most cases like "6.6.4-5+b1" vs "7.6.4-5+b1"
+	if ver1 > ver2 {
+		return 1
+	} else if ver1 < ver2 {
+		return -1
+	}
+	return 0
+}
+
+// ResolvePackage finds the best matching package for a given package name
+func ResolveTopPackageConflicts(want string, all []ospackage.PackageInfo) (ospackage.PackageInfo, bool) {
+	var candidates []ospackage.PackageInfo
+	for _, pi := range all {
+		// 1) exact name and version matched with .deb filenamae, e.g. acct_7.6.4-5+b1_amd64
+		if filepath.Base(pi.URL) == want+".deb" {
+			candidates = append(candidates, pi)
+			break
+		}
+		// 2) exact name, e.g. acct
+		if pi.Name == want {
+			candidates = append(candidates, pi)
+			continue
+		}
+		// 3) prefix by want-version ("acl-")
+		if strings.HasPrefix(pi.Name, want+"-") {
+			candidates = append(candidates, pi)
+			continue
+		}
+		// 4) prefix by want.release ("acl-2.3.1-2.")
+		if strings.HasPrefix(pi.Name, want+".") {
+			candidates = append(candidates, pi)
+		}
+		// 5) Debian package format (packagename_version_arch.deb)
+		if strings.HasPrefix(pi.Name, want+"_") {
+			candidates = append(candidates, pi)
+		}
+	}
+
+	if len(candidates) == 0 {
+		return ospackage.PackageInfo{}, false
+	}
+
+	// If we got an exact match in step (1), it's the only candidate
+	if len(candidates) == 1 && (candidates[0].Name == want || candidates[0].Name == want+".deb") {
+		return candidates[0], true
+	}
+
+	// Sort by version (highest version first)
+	sort.Slice(candidates, func(i, j int) bool {
+		return compareVersions(candidates[i].URL, candidates[j].URL) > 0
+	})
+
+	return candidates[0], true
 }
