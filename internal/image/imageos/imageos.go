@@ -31,7 +31,7 @@ func InstallInitrd(template *config.ImageTemplate) (string, string, error) {
 		return installRoot, versionInfo, fmt.Errorf("failed to initialize chroot install root: %w", err)
 	}
 
-	pkgType := chroot.GetTaRgetOsPkgType(config.TargetOs)
+	pkgType := chroot.GetTargetOsPkgType()
 	if pkgType == "deb" {
 		if err := initRootfsForDeb(installRoot); err != nil {
 			return installRoot, versionInfo, fmt.Errorf("failed to initialize rootfs for deb: %w", err)
@@ -95,7 +95,7 @@ func InstallImageOs(diskPathIdMap map[string]string, template *config.ImageTempl
 		return versionInfo, fmt.Errorf("failed to initialize chroot install root: %w", err)
 	}
 
-	pkgType := chroot.GetTaRgetOsPkgType(config.TargetOs)
+	pkgType := chroot.GetTargetOsPkgType()
 	if pkgType == "deb" {
 		if err = mountDiskRootToChroot(installRoot, diskPathIdMap, template); err != nil {
 			return versionInfo, fmt.Errorf("failed to mount disk root to chroot: %w", err)
@@ -192,12 +192,7 @@ func InitChrootInstallRoot(template *config.ImageTemplate) (string, error) {
 }
 
 func initRootfsForDeb(installRoot string) error {
-	chrootConfigDir, err := chroot.GetChrootConfigDir(config.TargetOs, config.TargetDist)
-	if err != nil {
-		return fmt.Errorf("failed to get chroot config directory: %v", err)
-	}
-	chrootEnvCongfigPath := filepath.Join(chrootConfigDir, "chrootenv_"+config.TargetArch+".yml")
-	essentialPkgsList, err := chroot.GetChrootEnvEssentialPackageList(chrootEnvCongfigPath)
+	essentialPkgsList, err := chroot.GetChrootEnvEssentialPackageList()
 	if err != nil {
 		return fmt.Errorf("failed to get essential packages list: %v", err)
 	}
@@ -414,12 +409,7 @@ func initDebLocalRepoWithinInstallRoot(installRoot string) error {
 		return fmt.Errorf("failed to remove existing local repo config files: %w", err)
 	}
 
-	chrootConfigDir, err := chroot.GetChrootConfigDir(config.TargetOs, config.TargetDist)
-	if err != nil {
-		return fmt.Errorf("failed to get chroot config directory: %v", err)
-	}
-
-	repoCongfigPath := filepath.Join(chrootConfigDir, "local.list")
+	repoCongfigPath := filepath.Join(chroot.TargetOsConfigDir, "chrootenvconfigs", "local.list")
 	if _, err := os.Stat(repoCongfigPath); os.IsNotExist(err) {
 		return fmt.Errorf("repo config file does not exist: %s", repoCongfigPath)
 	}
@@ -478,7 +468,7 @@ func preImageOsInstall(installRoot string, template *config.ImageTemplate) error
 
 func installImagePkgs(installRoot string, template *config.ImageTemplate) error {
 	log := logger.Logger()
-	pkgType := chroot.GetTaRgetOsPkgType(config.TargetOs)
+	pkgType := chroot.GetTargetOsPkgType()
 	if pkgType == "rpm" {
 		err := initImageRpmDb(installRoot, template)
 		if err != nil {
@@ -581,40 +571,38 @@ func updateImageConfig(installRoot string, diskPathIdMap map[string]string, temp
 
 func getImageVersionInfo(installRoot string, template *config.ImageTemplate) (string, error) {
 	var versionInfo string
-	var prefix string
 	log := logger.Logger()
 	log.Infof("Getting image version info for: %s", template.GetImageName())
-	imageVersionFilePath := filepath.Join(installRoot, "etc", "os-release")
-	if _, err := os.Stat(imageVersionFilePath); os.IsNotExist(err) {
-		return "", fmt.Errorf("os-release file does not exist: %s", imageVersionFilePath)
-	}
-	content, err := file.Read(imageVersionFilePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read image version file: %w", err)
-	}
 
 	switch config.TargetOs {
 	case "azure-linux", "edge-microvisor-toolkit":
-		prefix = "VERSION="
-	case "wind-river-elxr":
-		prefix = "VERSION_ID="
-	default:
-		prefix = "VERSION_ID="
-	}
-	// Parse the content to extract version information
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
-		if strings.HasPrefix(line, prefix) {
-			// Remove prefix, quotes and trim whitespace
-			line = strings.TrimPrefix(line, prefix)
-			versionInfo = strings.TrimSpace(strings.Trim(line, "\""))
+		imageVersionFilePath := filepath.Join(installRoot, "etc", "os-release")
+		if _, err := os.Stat(imageVersionFilePath); os.IsNotExist(err) {
+			return "", fmt.Errorf("os-release file does not exist: %s", imageVersionFilePath)
 		}
+		content, err := file.Read(imageVersionFilePath)
+		if err != nil {
+			return "", fmt.Errorf("failed to read image version file: %w", err)
+		}
+		// Parse the content to extract version information
+		lines := strings.Split(content, "\n")
+		for _, line := range lines {
+			if strings.HasPrefix(line, "VERSION=") {
+				// Remove prefix, quotes and trim whitespace
+				value := strings.TrimPrefix(line, "VERSION=")
+				versionInfo = strings.TrimSpace(strings.Trim(value, "\""))
+				break
+			}
+		}
+		if versionInfo == "" {
+			log.Debugf("Version info not found in %s", imageVersionFilePath)
+		}
+	default:
+		versionInfo = chroot.GetTargetOsReleaseVersion()
 	}
-	if versionInfo == "" {
-		log.Debugf("Version info not found in %s", imageVersionFilePath)
-	} else {
-		log.Infof("Extracted version info: %s", versionInfo)
-	}
+
+	log.Infof("Extracted version info: %s", versionInfo)
+
 	return versionInfo, nil
 }
 
