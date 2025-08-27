@@ -419,190 +419,6 @@ func ResolvePackageInfos(requested []ospackage.PackageInfo, all []ospackage.Pack
 	return result, nil
 }
 
-func ResolvePackageInfos1(requested []ospackage.PackageInfo, all []ospackage.PackageInfo) ([]ospackage.PackageInfo, error) {
-	// Build maps for fast lookup
-	byNameVer := make(map[string]ospackage.PackageInfo, len(all))
-	byProvides := make(map[string]ospackage.PackageInfo)
-	for _, pi := range all {
-		if pi.Version != "" {
-			key := fmt.Sprintf("%s=%s", pi.Name, pi.Version)
-			byNameVer[key] = pi
-		}
-		for _, prov := range pi.Provides {
-			byProvides[prov] = pi
-		}
-	}
-
-	neededSet := make(map[string]struct{})
-	queue := make([]ospackage.PackageInfo, 0, len(requested))
-	for _, pi := range requested {
-		if pi.Version != "" {
-			key := fmt.Sprintf("%s=%s", pi.Name, pi.Version)
-			if pkg, ok := byNameVer[key]; ok {
-				queue = append(queue, pkg)
-				continue
-			}
-		}
-		// Always pull the latest version for requested packages
-		var latest *ospackage.PackageInfo
-		for _, pkg := range all {
-			if pkg.Name == pi.Name {
-				if latest == nil {
-					tmp := pkg
-					latest = &tmp
-				} else {
-					cmp, err := compareDebianVersions(pkg.Version, latest.Version)
-					if err != nil {
-						return nil, fmt.Errorf("failed to compare versions: %v", err)
-					}
-					if cmp > 0 {
-						tmp := pkg
-						latest = &tmp
-					}
-				}
-			}
-		}
-		if latest != nil {
-			queue = append(queue, *latest)
-			continue
-		}
-		if provPkg, ok := byProvides[pi.Name]; ok {
-			queue = append(queue, provPkg)
-			continue
-		}
-		return nil, fmt.Errorf("requested package %q not in repo listing", pi.Name)
-	}
-
-	result := make([]ospackage.PackageInfo, 0)
-
-	for len(queue) > 0 {
-		cur := queue[0]
-		queue = queue[1:]
-
-		if _, seen := neededSet[cur.Name]; seen {
-			continue
-		}
-		neededSet[cur.Name] = struct{}{}
-		result = append(result, cur)
-
-		// Traverse dependencies
-		for _, dep := range cur.Requires {
-			depName := CleanDependencyName(dep)
-			depVersion := ""
-
-			// Extract version information if present (for more precise matching)
-			originalDep := strings.TrimSpace(dep)
-			if idx := strings.Index(originalDep, "("); idx > 0 {
-				verPart := strings.TrimSpace(originalDep[idx:])
-				verPart = strings.Trim(verPart, "() ")
-				if strings.HasPrefix(verPart, "=") {
-					depVersion = strings.TrimSpace(strings.TrimPrefix(verPart, "="))
-				}
-			}
-
-			if depName == "" || neededSet[depName] != struct{}{} {
-				continue
-			}
-			if _, seen := neededSet[depName]; seen {
-				continue
-			}
-			// If version is enforced, match by name+version or latest >= version
-			if depVersion != "" {
-				key := fmt.Sprintf("%s=%s", depName, depVersion)
-				if depPkg, ok := byNameVer[key]; ok {
-					queue = append(queue, depPkg)
-					continue
-				}
-				var found *ospackage.PackageInfo
-				for _, pi := range all {
-					if pi.Name == depName {
-						cmp, err := compareDebianVersions(pi.Version, depVersion)
-						if err != nil {
-							return nil, fmt.Errorf("failed to compare versions: %v", err)
-						}
-						if cmp >= 0 {
-							if found == nil {
-								tmp := pi
-								found = &tmp
-							} else {
-								cmp2, err := compareDebianVersions(pi.Version, found.Version)
-								if err != nil {
-									return nil, fmt.Errorf("failed to compare versions: %v", err)
-								}
-								if cmp2 > 0 {
-									tmp := pi
-									found = &tmp
-								}
-							}
-						}
-					}
-				}
-				if found != nil {
-					queue = append(queue, *found)
-					continue
-				}
-				return nil, fmt.Errorf("dependency %q (version %q or higher) required by %q not found in repo", depName, depVersion, cur.Name)
-			}
-			// Always pull the latest version for unconstrained dependencies
-			var latest *ospackage.PackageInfo
-			for _, pi := range all {
-				if pi.Name == depName {
-					if latest == nil {
-						tmp := pi
-						latest = &tmp
-					} else {
-						cmp, err := compareDebianVersions(pi.Version, latest.Version)
-						if err != nil {
-							return nil, fmt.Errorf("failed to compare versions: %v", err)
-						}
-						if cmp > 0 {
-							tmp := pi
-							latest = &tmp
-						}
-					}
-				}
-			}
-			if latest != nil {
-				queue = append(queue, *latest)
-			} else if provPkg, ok := byProvides[depName]; ok {
-				// Find the latest version of provPkg.Name based on provPkg.Version
-				var latestProv *ospackage.PackageInfo
-				for _, pi := range all {
-					if pi.Name == provPkg.Name {
-						if latestProv == nil {
-							tmp := pi
-							latestProv = &tmp
-						} else {
-							cmp, err := compareDebianVersions(pi.Version, latestProv.Version)
-							if err != nil {
-								return nil, fmt.Errorf("failed to compare versions: %v", err)
-							}
-							if cmp > 0 {
-								tmp := pi
-								latestProv = &tmp
-							}
-						}
-					}
-				}
-				if latestProv != nil {
-					queue = append(queue, *latestProv)
-				} else {
-					queue = append(queue, provPkg)
-				}
-			} else {
-				return nil, fmt.Errorf("dependency %q required by %q not found in repo", depName, cur.Name)
-			}
-		}
-	}
-
-	// Sort result by package name for determinism
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Name < result[j].Name
-	})
-
-	return result, nil
-}
-
 func getFullUrl(filePath string, baseUrl string) (string, error) {
 	// Check if the file path is already a full URL
 	if strings.HasPrefix(filePath, "http://") || strings.HasPrefix(filePath, "https://") {
@@ -859,14 +675,22 @@ func extractRepoBase(rawURL string) (string, error) {
 
 func resolveMultiCandidates(parentPkg ospackage.PackageInfo, candidates []ospackage.PackageInfo) (ospackage.PackageInfo, error) {
 
-	// baseURL, _ := extractRepoBase(parentPkg.URL)
-	// fmt.Printf("\n\nyockgen: parentPkg url: %s %s %s\n", parentPkg.Name, parentPkg.Requires, baseURL)
+	/////////////////////////////////////
+	//A: if version is specified
+	/////////////////////////////////////
 
-	// for _, itx := range candidates {
-	// 	candidateBaseURL, _ := extractRepoBase(itx.URL)
-	// 	fmt.Printf("yockgen: candidate url: %s %s %s\n", itx.Name, itx.Version, candidateBaseURL)
+	//Rule 3: if the latest matched with parent depedency's requirement
+	// if latest.Name == parentPkg.Name && latest.Version == parentPkg.Version {
+	// 	return latest, nil
 	// }
-	// return ospackage.PackageInfo{}, fmt.Errorf("yockgen: parentPkg url: %s %s %s\n", parentPkg.Name, parentPkg.Requires, parentPkg.URL)
+
+	//1. get depversion of the dp
+	//2. check latest != depversion (error, either less than or more than) or depversion == "" - return latest
+	// 1.1.1 = if less than error
+
+	/////////////////////////////////////
+	// B: if version is not specificied
+	//////////////////////////////////////
 
 	// Check for empty candidates list
 	if len(candidates) == 0 {
@@ -883,19 +707,36 @@ func resolveMultiCandidates(parentPkg ospackage.PackageInfo, candidates []ospack
 		return ospackage.PackageInfo{}, fmt.Errorf("failed to extract repo base from parent package URL: %v", err)
 	}
 
-	// Rule 1: try to find a candidate with the same base URL
+	// Rule 1: find all candidates with the same base URL and return the latest version
+	var sameBaseCandidates []ospackage.PackageInfo
 	for _, candidate := range candidates {
 		candidateBase, err := extractRepoBase(candidate.URL)
 		if err != nil {
 			continue
 		}
 		if candidateBase == parentBase {
-			return candidate, nil
+			sameBaseCandidates = append(sameBaseCandidates, candidate)
 		}
 	}
 
-	// Rule 2: ??? must be something still missing
+	// If we found candidates with the same base URL, return the one with the latest version
+	if len(sameBaseCandidates) > 0 {
+		if len(sameBaseCandidates) == 1 {
+			return sameBaseCandidates[0], nil
+		}
 
-	// Rule 3: If no candidate has the same base URL, return the first candidate
+		// Find the candidate with the latest version
+		latest := sameBaseCandidates[0]
+		for _, candidate := range sameBaseCandidates[1:] {
+			cmp := compareVersions(candidate.Version, latest.Version)
+			if cmp > 0 {
+				latest = candidate
+			}
+		}
+
+		return latest, nil
+	}
+
+	// Rule 2: If no candidate has the same repo, return the first candidate in other repos (base repo + )
 	return candidates[0], nil
 }
