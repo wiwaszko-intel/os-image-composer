@@ -43,7 +43,7 @@ func TestBuild_HappyPath_WithFakeProvider(t *testing.T) {
 	// Arrange: register fake in the provider registry under a known ID
 	id := "test-os:test-dist:test-arch"
 	fp := &fakeProvider{}
-	provider.Register(id, fp)          // <-- adjust if your registry signature differs
+	provider.Register(fp, "test-dist", "test-arch")          // <-- adjusted to match expected signature
 	config.ProviderId = id
 
 	// Minimal CLI setup
