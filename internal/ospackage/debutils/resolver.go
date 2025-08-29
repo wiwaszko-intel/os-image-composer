@@ -524,7 +524,7 @@ func ResolveTopPackageConflicts(want string, all []ospackage.PackageInfo) (ospac
 		// 2) exact name, e.g. acct
 		if pi.Name == want {
 			candidates = append(candidates, pi)
-			continue
+			break
 		}
 		// 3) prefix by want-version ("acl-")
 		if strings.HasPrefix(pi.Name, want+"-") {
@@ -534,6 +534,7 @@ func ResolveTopPackageConflicts(want string, all []ospackage.PackageInfo) (ospac
 		// 4) prefix by want.release ("acl-2.3.1-2.")
 		if strings.HasPrefix(pi.Name, want+".") {
 			candidates = append(candidates, pi)
+			continue
 		}
 		// 5) Debian package format (packagename_version_arch.deb)
 		if strings.HasPrefix(pi.Name, want+"_") {
