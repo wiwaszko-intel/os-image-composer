@@ -1,6 +1,7 @@
 package debutils
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -257,28 +258,34 @@ func MatchRequested(requests []string, all []ospackage.PackageInfo) ([]ospackage
 	return out, nil
 }
 
-// WriteArrayToFile writes the contents of arr to a text file.
-// The file will have the given title as the first line, followed by each element of arr on a new line.
+// WriteArrayToFile writes the contents of arr to a JSON file.
+// The file will contain a report_type and a "missing" array of strings.
 // The filename will be prefixed with the current date and time in "YYYYMMDD_HHMMSS_" format.
 func WriteArrayToFile(arr []string, title string) (string, error) {
 	now := time.Now()
-	filename := filepath.Join("builds", fmt.Sprintf("%s_%s.txt", strings.ReplaceAll(title, " ", "_"), now.Format("20060102_150405")))
+	filename := filepath.Join("builds", fmt.Sprintf("%s_%s.json", strings.ReplaceAll(title, " ", "_"), now.Format("20060102_150405")))
+
+	// Ensure "report_type" is the first key in the output
+	type reportStruct struct {
+		ReportType string   `json:"report_type"`
+		Missing    []string `json:"missing"`
+	}
+
+	report := reportStruct{
+		ReportType: "missing_packages_report",
+		Missing:    arr,
+	}
+
 	file, err := os.Create(filename)
 	if err != nil {
 		return "", fmt.Errorf("creating file: %w", err)
 	}
 	defer file.Close()
 
-	_, err = file.WriteString(title + ":\n")
-	if err != nil {
-		return "", fmt.Errorf("writing title: %w", err)
-	}
-
-	for _, line := range arr {
-		_, err := file.WriteString(line + "\n")
-		if err != nil {
-			return "", fmt.Errorf("writing line: %w", err)
-		}
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(report); err != nil {
+		return "", fmt.Errorf("writing json: %w", err)
 	}
 
 	return filename, nil

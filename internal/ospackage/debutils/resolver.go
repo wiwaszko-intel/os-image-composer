@@ -2,6 +2,7 @@ package debutils
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/url"
@@ -9,11 +10,33 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/open-edge-platform/image-composer/internal/ospackage"
 	"github.com/open-edge-platform/image-composer/internal/ospackage/pkgfetcher"
 	"github.com/open-edge-platform/image-composer/internal/utils/logger"
 )
+
+// MinimalPackageInfo contains only essential fields for reporting.
+type MinimalPackageInfo struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+	Origin  string `json:"origin"`
+	URL     string `json:"url"`
+	Parent  string `json:"parent,omitempty"`
+	Child   string `json:"child,omitempty"`
+	Found   bool   `json:"found"`
+}
+
+// DependencyChain represents a chain of dependencies for reporting.
+type DependencyChain struct {
+	Chain []MinimalPackageInfo `json:"trace"`
+}
+
+type MissingReport struct {
+	ReportType string                       `json:"report_type"`
+	Missing    map[string][]DependencyChain `json:"missing"`
+}
 
 func GenerateDot(pkgs []ospackage.PackageInfo, file string) error {
 	return nil
@@ -266,7 +289,7 @@ func ResolvePackageInfos(requested []ospackage.PackageInfo, all []ospackage.Pack
 	result := make([]ospackage.PackageInfo, 0)
 
 	// Track parent->child relationships
-	var parentChildPairs []string
+	var parentChildPairs [][]ospackage.PackageInfo
 	gotMissingPkg := false
 
 	for len(queue) > 0 {
@@ -295,12 +318,12 @@ func ResolvePackageInfos(requested []ospackage.PackageInfo, all []ospackage.Pack
 				chosenCandidate, err := resolveMultiCandidates(cur, candidates)
 				if err != nil {
 					gotMissingPkg = true
-					parentChildPairs = append(parentChildPairs, cur.Name+"->"+depName+"(missing)")
+					AddParentMissingChildPair(cur, depName+"(missing)", &parentChildPairs)
 					log.Warnf("failed to resolve multiple candidates for dependency %q of package %q: %v", depName, cur.Name, err)
 					continue
 				}
 				queue = append(queue, chosenCandidate)
-				parentChildPairs = append(parentChildPairs, cur.Name+"->"+chosenCandidate.Name)
+				AddParentChildPair(cur, chosenCandidate, &parentChildPairs)
 				continue
 			}
 
@@ -326,14 +349,14 @@ func ResolvePackageInfos(requested []ospackage.PackageInfo, all []ospackage.Pack
 				}
 				if latestProv != nil {
 					queue = append(queue, *latestProv)
-					parentChildPairs = append(parentChildPairs, cur.Name+"->"+latestProv.Name)
+					AddParentChildPair(cur, *latestProv, &parentChildPairs)
 				} else {
 					queue = append(queue, provPkg)
-					parentChildPairs = append(parentChildPairs, cur.Name+"->"+provPkg.Name)
+					AddParentChildPair(cur, provPkg, &parentChildPairs)
 				}
 			} else {
 				gotMissingPkg = true
-				parentChildPairs = append(parentChildPairs, cur.Name+"->"+depName+"(missing)")
+				AddParentMissingChildPair(cur, depName+"(missing)", &parentChildPairs)
 				log.Warnf("dependency %q required by %q not found in repo", depName, cur.Name)
 			}
 		}
@@ -341,11 +364,7 @@ func ResolvePackageInfos(requested []ospackage.PackageInfo, all []ospackage.Pack
 
 	// check missing dep and write report
 	if gotMissingPkg {
-		cleanDep := BuildDependencyChains(parentChildPairs)
-		report, err := WriteArrayToFile(cleanDep, "Missing Requested Dependencies")
-		if err != nil {
-			log.Errorf("writing missing dependencies report failed: %v", err)
-		}
+		report := BuildDependencyChains(parentChildPairs)
 		return nil, fmt.Errorf("one or more requested dependencies not found. See list in %s", report)
 	}
 
@@ -357,57 +376,113 @@ func ResolvePackageInfos(requested []ospackage.PackageInfo, all []ospackage.Pack
 	return result, nil
 }
 
-func BuildDependencyChains(parentChildPairs []string) []string {
-	// Build a map: parent -> list of children
-	depMap := make(map[string][]string)
-	// Track all children to find roots
-	children := make(map[string]struct{})
+func AddParentChildPair(parent ospackage.PackageInfo, child ospackage.PackageInfo, pairs *[][]ospackage.PackageInfo) {
+	*pairs = append(*pairs, []ospackage.PackageInfo{parent, child})
+}
+
+// If child is missing, create an empty PackageInfo with just the name
+func AddParentMissingChildPair(parent ospackage.PackageInfo, missingChildName string, pairs *[][]ospackage.PackageInfo) {
+	child := ospackage.PackageInfo{Name: missingChildName}
+	*pairs = append(*pairs, []ospackage.PackageInfo{parent, child})
+}
+
+// BuildDependencyChains constructs readable dependency chains from parentChildPairs,
+// writes them as a JSON array to a file in /tmp, and returns the file path.
+func BuildDependencyChains(parentChildPairs [][]ospackage.PackageInfo) string {
+	// Build adjacency list with MinimalPackageInfo
+	graph := make(map[string][]MinimalPackageInfo)
+	parents := make(map[string]MinimalPackageInfo)
+	children := make(map[string]MinimalPackageInfo)
+
+	// Convert ospackage.PackageInfo to MinimalPackageInfo for all pairs
+	toMinimal := func(pkg ospackage.PackageInfo) MinimalPackageInfo {
+		return MinimalPackageInfo{
+			Name:    pkg.Name,
+			Version: pkg.Version,
+			Origin:  pkg.Origin,
+			URL:     pkg.URL,
+		}
+	}
+
 	for _, pair := range parentChildPairs {
-		pair = strings.TrimSpace(pair)
-		parts := strings.Split(pair, "->")
-		if len(parts) != 2 {
+		if len(pair) != 2 {
 			continue
 		}
-		parent := strings.TrimSpace(parts[0])
-		child := strings.TrimSpace(parts[1])
-		depMap[parent] = append(depMap[parent], child)
-		children[child] = struct{}{}
+		parent := toMinimal(pair[0])
+		child := toMinimal(pair[1])
+
+		// Handle missing child
+		if strings.Contains(child.Name, "(missing)") {
+			child.Found = false
+			child.Name = strings.ReplaceAll(child.Name, "(missing)", "")
+		} else {
+			child.Found = true
+		}
+
+		// Handle missing parent (rare, but for completeness)
+		if strings.Contains(parent.Name, "(missing)") {
+			parent.Found = false
+			parent.Name = strings.ReplaceAll(parent.Name, "(missing)", "")
+		} else {
+			parent.Found = true
+		}
+
+		if parent.Name == "" || child.Name == "" {
+			continue
+		}
+		parent.Child = child.Name
+		child.Parent = parent.Name
+		graph[parent.Name] = append(graph[parent.Name], child)
+		parents[parent.Name] = parent
+		children[child.Name] = child
 	}
 
-	// Find roots (parents that are not children)
-	roots := []string{}
-	for parent := range depMap {
-		if _, isChild := children[parent]; !isChild {
-			roots = append(roots, parent)
+	// Find root nodes (parents that are not children)
+	var roots []MinimalPackageInfo
+	for _, p := range parents {
+		if _, ok := children[p.Name]; !ok {
+			roots = append(roots, p)
 		}
 	}
 
-	// Build chains (DFS for each root)
-	var chains []string
-	var visit func(cur string, chain string)
-	visit = func(cur string, chain string) {
-		childrenList, ok := depMap[cur]
-		if !ok || len(childrenList) == 0 {
-			chains = append(chains, chain)
-			return
-		}
-		for _, child := range childrenList {
-			visit(child, chain+"->"+child)
+	// DFS to build chains
+	report := MissingReport{
+		ReportType: "missing_dependencies_report",
+		Missing:    make(map[string][]DependencyChain),
+	}
+
+	var dfs func(node MinimalPackageInfo, path []MinimalPackageInfo)
+	dfs = func(node MinimalPackageInfo, path []MinimalPackageInfo) {
+		path = append(path, node)
+		if next, ok := graph[node.Name]; ok && len(next) > 0 {
+			for _, child := range next {
+				dfs(child, path)
+			}
+		} else {
+			// Only report if the last node is a missing package (contains "(missing)")
+			missingName := path[len(path)-1].Name
+			if !path[len(path)-1].Found {
+				report.Missing[missingName] = append(report.Missing[missingName], DependencyChain{Chain: path})
+			}
 		}
 	}
 
 	for _, root := range roots {
-		visit(root, root)
+		dfs(root, []MinimalPackageInfo{})
 	}
 
-	var missingChains []string
-	for _, chain := range chains {
-		if strings.Contains(chain, "(missing)") {
-			missingChains = append(missingChains, chain)
-		}
+	// Write report to JSON file in builds
+	reportPath := fmt.Sprintf("builds/dependency_missing_report_%d.json", time.Now().UnixNano())
+	f, err := os.Create(reportPath)
+	if err != nil {
+		return ""
 	}
+	defer f.Close()
+	enc := json.NewEncoder(f)
+	enc.SetIndent("", "  ")
+	_ = enc.Encode(report)
 
-	return missingChains
+	return reportPath
 }
 
 func getFullUrl(filePath string, baseUrl string) (string, error) {
