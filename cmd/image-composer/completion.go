@@ -117,10 +117,10 @@ func executeInstallCompletion(cmd *cobra.Command, args []string) error {
 		// Optional system install if writable and explicitly requested
 		// (e.g., export IMAGE_COMPOSER_COMPLETION_SCOPE=system)
 		systemDir := "/etc/bash_completion.d"
-		if os.Getenv("IMAGE_COMPOSER_COMPLETION_SCOPE") == "system" &&
-			!os.IsNotExist(func() error { _, e := os.Stat(systemDir); return e }()) &&
-			dirWritable(systemDir) {
-			completionDir = systemDir
+		if os.Getenv("IMAGE_COMPOSER_COMPLETION_SCOPE") == "system" {
+			if _, err := os.Stat(systemDir); !os.IsNotExist(err) && dirWritable(systemDir) {
+				completionDir = systemDir
+			}
 		}
 
 		targetPath = filepath.Join(completionDir, "image-composer.bash")
@@ -166,7 +166,7 @@ func executeInstallCompletion(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// at top-level (helper)
+// dirWritable checks if the specified directory is writable by attempting to create and remove a temporary file.
 func dirWritable(p string) bool {
 	tf, err := os.CreateTemp(p, ".probe-*")
 	if err != nil {
