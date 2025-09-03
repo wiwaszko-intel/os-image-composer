@@ -407,8 +407,8 @@ func TestSignImage_SuccessfulSigning(t *testing.T) {
 	}
 }
 
-// Test file copying error scenarios
-func TestSignImage_FileCopyErrors(t *testing.T) {
+// Test file validation error scenarios
+func TestSignImage_FileValidationErrors(t *testing.T) {
 	installRoot := t.TempDir()
 	
 	// Store original executor and restore at the end
@@ -453,11 +453,10 @@ func TestSignImage_FileCopyErrors(t *testing.T) {
 		t.Fatalf("Failed to create test cer file: %v", err)
 	}
 
-	// Make certificate file read-only to prevent copying
-	if err := os.Chmod(cerFile, 0000); err != nil {
-		t.Fatalf("Failed to make cert file unreadable: %v", err)
+	// Delete the certificate file to test file validation error
+	if err := os.Remove(cerFile); err != nil {
+		t.Fatalf("Failed to remove cert file: %v", err)
 	}
-	defer os.Chmod(cerFile, 0644) // restore permissions for cleanup
 
 	// Create mock commands for sbsign and use CustomMockExecutor to create signed files
 	// so that signing succeeds and we test the certificate copy error
@@ -487,11 +486,11 @@ func TestSignImage_FileCopyErrors(t *testing.T) {
 
 	err := imagesign.SignImage(installRoot, template)
 	if err == nil {
-		t.Error("SignImage should fail when certificate file is unreadable")
+		t.Error("SignImage should fail when certificate file is missing")
 		return
 	}
-	if !strings.Contains(err.Error(), "failed to open certificate file") {
-		t.Errorf("Expected certificate file error, got: %v", err)
+	if !strings.Contains(err.Error(), "certificate file not found") {
+		t.Errorf("Expected certificate file not found error, got: %v", err)
 	}
 }
 
