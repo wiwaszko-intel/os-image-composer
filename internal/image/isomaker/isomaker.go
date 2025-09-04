@@ -386,7 +386,7 @@ func createIsolinuxCfg(isoIsolinuxPath, imageName string) error {
 
 	if err := file.ReplacePlaceholdersInFile("{{.ImageName}}", imageName, isolinuxCfgDest); err != nil {
 		log.Errorf("Failed to replace ImageName in isolinux configuration: %v", err)
-		return fmt.Errorf("failed to replace ImageName in grub configuration: %w", err)
+		return fmt.Errorf("failed to replace ImageName in isolinux configuration: %w", err)
 	}
 
 	return nil
@@ -590,21 +590,21 @@ func archToGrubFormat(arch string) (string, error) {
 func createEfiFatImage(isoEfiPath, isoImagesPath string) (efiFatImgPath string, err error) {
 	log.Infof("Creating EFI FAT image for UEFI boot...")
 	efiFatImgPath = filepath.Join(isoImagesPath, "efiboot.img")
-	if err := imagedisc.CreateRawFile(efiFatImgPath, "18MiB"); err != nil {
-		return efiFatImgPath, fmt.Errorf("failed to create EFI FAT image: %w", err)
+	if err = imagedisc.CreateRawFile(efiFatImgPath, "18MiB"); err != nil {
+		return // Bare return - returns efiFatImgPath and err
 	}
 
 	cmdStr := fmt.Sprintf("mkfs -t vfat %s", efiFatImgPath)
 	if _, err = shell.ExecCmd(cmdStr, true, "", nil); err != nil {
 		log.Errorf("Failed to create FAT filesystem on EFI image: %v", err)
-		return efiFatImgPath, fmt.Errorf("failed to create FAT filesystem on EFI image: %w", err)
+		return // Bare return - returns efiFatImgPath and err
 	}
 
 	// Create a temporary directory to mount the FAT image
 	tempMountDir := filepath.Join(isoImagesPath, "efi_tmp")
-	if err := mount.MountPath(efiFatImgPath, tempMountDir, "-o loop"); err != nil {
+	if err = mount.MountPath(efiFatImgPath, tempMountDir, "-o loop"); err != nil {
 		log.Errorf("Failed to mount EFI FAT image: %v", err)
-		return efiFatImgPath, fmt.Errorf("failed to mount EFI FAT image: %w", err)
+		return
 	}
 
 	defer func() {
@@ -632,16 +632,16 @@ func createEfiFatImage(isoEfiPath, isoImagesPath string) (efiFatImgPath string, 
 	efiBootDir := filepath.Join(tempMountDir, "EFI", "BOOT")
 	if err = file.CopyDir(isoEfiPath, efiBootDir, "--preserve=mode", true); err != nil {
 		log.Errorf("Failed to copy EFI bootloader to FAT image: %v", err)
-		return efiFatImgPath, fmt.Errorf("failed to copy EFI bootloader to FAT image: %w", err)
+		return
 	}
 
 	// Sync to ensure all data is written to disk
 	if _, err = shell.ExecCmd("sync", true, "", nil); err != nil {
 		log.Errorf("Failed to sync temporary mount directory %s: %v", tempMountDir, err)
-		return efiFatImgPath, fmt.Errorf("failed to sync temporary mount directory %s: %w", tempMountDir, err)
+		return
 	}
 
-	return efiFatImgPath, nil
+	return
 }
 
 func cleanInitrd(initrdRootfsPath, initrdFilePath string) error {

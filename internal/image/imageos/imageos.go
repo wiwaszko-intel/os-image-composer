@@ -52,18 +52,20 @@ func (imageOs *ImageOs) GetInstallRoot() string {
 }
 
 func (imageOs *ImageOs) InstallInitrd() (installRoot, versionInfo string, err error) {
+	installRoot = imageOs.installRoot
 	versionInfo = ""
 	log.Infof("Installing initrd for image: %s", imageOs.template.GetImageName())
 
 	pkgType := imageOs.chrootEnv.GetTargetOsPkgType()
 	if pkgType == "deb" {
 		if err = imageOs.initRootfsForDeb(imageOs.installRoot); err != nil {
-			return imageOs.installRoot, versionInfo, fmt.Errorf("failed to initialize rootfs for deb: %w", err)
+			err = fmt.Errorf("failed to initialize rootfs for deb: %w", err)
+			return
 		}
 	}
 
-	if err := imageOs.mountSysfsToRootfs(imageOs.installRoot); err != nil {
-		return imageOs.installRoot, versionInfo, err
+	if err = imageOs.mountSysfsToRootfs(imageOs.installRoot); err != nil {
+		return
 	}
 
 	defer func() {
@@ -78,40 +80,40 @@ func (imageOs *ImageOs) InstallInitrd() (installRoot, versionInfo string, err er
 
 	log.Infof("Image installation pre-processing...")
 	if err = preImageOsInstall(imageOs.installRoot, imageOs.template); err != nil {
-		return imageOs.installRoot, versionInfo, fmt.Errorf("pre-install failed: %w", err)
+		err = fmt.Errorf("pre-install failed: %w", err)
+		return
 	}
 
 	log.Infof("Image package installation...")
 	if err = imageOs.installImagePkgs(imageOs.installRoot, imageOs.template); err != nil {
-		return imageOs.installRoot, versionInfo, fmt.Errorf("failed to install image packages: %w", err)
+		err = fmt.Errorf("failed to install image packages: %w", err)
+		return
 	}
 
 	log.Infof("Image system configuration...")
 	if err = updateInitrdConfig(imageOs.installRoot, imageOs.template); err != nil {
-		return imageOs.installRoot, versionInfo, fmt.Errorf("failed to update image config: %w", err)
+		err = fmt.Errorf("failed to update image config: %w", err)
+		return
 	}
 
 	log.Infof("Image installation post-processing...")
 	versionInfo, err = imageOs.postImageOsInstall(imageOs.installRoot, imageOs.template)
 	if err != nil {
-		return imageOs.installRoot, versionInfo, fmt.Errorf("post-install failed: %w", err)
+		err = fmt.Errorf("post-install failed: %w", err)
+		return
 	}
 
-	return imageOs.installRoot, versionInfo, nil
+	return
 }
 
 func (imageOs *ImageOs) InstallImageOs(diskPathIdMap map[string]string) (versionInfo string, err error) {
 	versionInfo = ""
 	var mountPointInfoList []map[string]string
+	var mounted bool = false
 	log.Infof("Installing OS for image: %s", imageOs.template.GetImageName())
 
-	pkgType := imageOs.chrootEnv.GetTargetOsPkgType()
-	if pkgType == "deb" {
-		if err = mountDiskRootToChroot(imageOs.installRoot, diskPathIdMap, imageOs.template); err != nil {
-			return versionInfo, fmt.Errorf("failed to mount disk root to chroot: %w", err)
-		}
-
-		defer func() {
+	defer func() {
+		if mounted {
 			if umountErr := imageOs.umountDiskFromChroot(imageOs.installRoot, mountPointInfoList); umountErr != nil {
 				if err != nil {
 					err = fmt.Errorf("operation failed: %w, cleanup errors: %v", err, umountErr)
@@ -119,70 +121,77 @@ func (imageOs *ImageOs) InstallImageOs(diskPathIdMap map[string]string) (version
 					err = fmt.Errorf("failed to unmount disk from chroot: %w", umountErr)
 				}
 			}
-		}()
+		}
+	}()
 
+	pkgType := imageOs.chrootEnv.GetTargetOsPkgType()
+	if pkgType == "deb" {
+		if err = mountDiskRootToChroot(imageOs.installRoot, diskPathIdMap, imageOs.template); err != nil {
+			err = fmt.Errorf("failed to mount disk root to chroot: %w", err)
+			return
+		}
+		mounted = true
 		if err = imageOs.initRootfsForDeb(imageOs.installRoot); err != nil {
-			return versionInfo, fmt.Errorf("failed to initialize rootfs for deb: %w", err)
+			err = fmt.Errorf("failed to initialize rootfs for deb: %w", err)
+			return
 		}
 	}
 
 	mountPointInfoList, err = imageOs.mountDiskToChroot(imageOs.installRoot, diskPathIdMap, imageOs.template)
 	if err != nil {
-		return versionInfo, fmt.Errorf("failed to mount disk to chroot: %w", err)
+		err = fmt.Errorf("failed to mount disk to chroot: %w", err)
+		return
 	}
-
-	if pkgType != "deb" {
-		defer func() {
-			if umountErr := imageOs.umountDiskFromChroot(imageOs.installRoot, mountPointInfoList); umountErr != nil {
-				if err != nil {
-					err = fmt.Errorf("operation failed: %w, cleanup errors: %v", err, umountErr)
-				} else {
-					err = fmt.Errorf("failed to unmount disk from chroot: %w", umountErr)
-				}
-			}
-		}()
-	}
+	mounted = true
 
 	log.Infof("Image installation pre-processing...")
 	if err = preImageOsInstall(imageOs.installRoot, imageOs.template); err != nil {
-		return versionInfo, fmt.Errorf("pre-install failed: %w", err)
+		err = fmt.Errorf("pre-install failed: %w", err)
+		return
 	}
 
 	log.Infof("Image package installation...")
 	if err = imageOs.installImagePkgs(imageOs.installRoot, imageOs.template); err != nil {
-		return versionInfo, fmt.Errorf("failed to install image packages: %w", err)
+		err = fmt.Errorf("failed to install image packages: %w", err)
+		return
 	}
 
 	log.Infof("Image system configuration...")
 	if err = updateImageConfig(imageOs.installRoot, diskPathIdMap, imageOs.template); err != nil {
-		return versionInfo, fmt.Errorf("failed to update image config: %w", err)
+		err = fmt.Errorf("failed to update image config: %w", err)
+		return
 	}
 
 	log.Infof("Installing bootloader...")
 	if err = imageboot.InstallImageBoot(imageOs.installRoot, diskPathIdMap, imageOs.template); err != nil {
-		return versionInfo, fmt.Errorf("failed to install image boot: %w", err)
+		err = fmt.Errorf("failed to install image boot: %w", err)
+		return
 	}
 
 	if err = imagesecure.ConfigImageSecurity(imageOs.installRoot, imageOs.template); err != nil {
-		return versionInfo, fmt.Errorf("failed to configure image security: %w", err)
+		err = fmt.Errorf("failed to configure image security: %w", err)
+		return
 	}
 
 	log.Infof("Configuring UKI...")
 	if err = buildImageUKI(imageOs.installRoot, imageOs.template); err != nil {
-		return versionInfo, fmt.Errorf("failed to configure UKI: %w", err)
+		err = fmt.Errorf("failed to configure UKI: %w", err)
+		return
 	}
 
 	if err = imagesign.SignImage(imageOs.installRoot, imageOs.template); err != nil {
-		return versionInfo, fmt.Errorf("failed to sign image: %w", err)
+		err = fmt.Errorf("failed to sign image: %w", err)
+		return
 	}
 
 	log.Infof("Image installation post-processing...")
 	versionInfo, err = imageOs.postImageOsInstall(imageOs.installRoot, imageOs.template)
 	if err != nil {
-		return versionInfo, fmt.Errorf("post-install failed: %w", err)
+		err = fmt.Errorf("post-install failed: %w", err)
+		return
 	}
 
-	return versionInfo, nil
+	return
 }
 
 func (imageOs *ImageOs) initRootfsForDeb(installRoot string) error {
@@ -765,7 +774,7 @@ func buildImageUKI(installRoot string, template *config.ImageTemplate) error {
 			return fmt.Errorf("failed to update initramfs: %w", err)
 		}
 
-		log.Debug("Initrd updated successfully")
+		log.Debug("Initramfs updated successfully")
 
 		// 2. Build UKI with ukify
 		kernelPath := filepath.Join("/boot", "vmlinuz-"+kernelVersion)
@@ -793,7 +802,7 @@ func buildImageUKI(installRoot string, template *config.ImageTemplate) error {
 		if err := copyBootloader(installRoot, srcBootloader, dstBootloader); err != nil {
 			return fmt.Errorf("failed to copy bootloader: %w", err)
 		}
-		log.Debugf("Bootloader copied successfully on:", dstBootloader)
+		log.Debugf("Bootloader copied successfully to:", dstBootloader)
 	} else {
 		log.Infof("Skipping UKI build for image: %s, bootloader provider is not systemd-boot", template.GetImageName())
 	}
@@ -989,7 +998,7 @@ func getVerityRootHash(partPair, installRoot string) (string, error) {
 	// runs on host
 	exists, _ := shell.IsCommandExist("ukify", installRoot)
 	if !exists {
-		log.Debugf("ukify not found, running veritysetup on host")
+		log.Debugf("Ukify not found, running veritysetup on host")
 		installRoot = ""
 	}
 	output, err := shell.ExecCmd(cmd, true, installRoot, nil)
@@ -1036,7 +1045,7 @@ func buildUKI(installRoot, kernelPath, initrdPath, cmdlineFile, outputPath strin
 	var backInstallRoot = installRoot
 	exists, _ := shell.IsCommandExist("ukify", installRoot)
 	if !exists {
-		log.Debugf("ukify not found, running ukify on host")
+		log.Debugf("Ukify not found, running ukify on host")
 		kernelPath = filepath.Join(installRoot, kernelPath)
 		initrdPath = filepath.Join(installRoot, initrdPath)
 		outputPath = filepath.Join(installRoot, outputPath)
