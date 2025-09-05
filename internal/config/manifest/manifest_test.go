@@ -1,4 +1,3 @@
-// Replace the TestWriteSPDXToFile test in manifest_test.go with this fixed version:
 
 package manifest
 
