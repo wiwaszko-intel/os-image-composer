@@ -331,7 +331,7 @@ func TestValidate(t *testing.T) {
 			setupRepo: func() *httptest.Server {
 				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Type", "text/plain")
-					w.Write([]byte("dummy-gpg-key-content"))
+					_, _ = w.Write([]byte("dummy-gpg-key-content"))
 				}))
 				return server
 			},

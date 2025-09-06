@@ -27,11 +27,11 @@ func TestFetchPackages_Success(t *testing.T) {
 		case "/package1.rpm":
 			w.Header().Set("Content-Type", "application/x-rpm")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("mock package1 content"))
+			_, _ = w.Write([]byte("mock package1 content"))
 		case "/package2.deb":
 			w.Header().Set("Content-Type", "application/x-deb")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("mock package2 content"))
+			_, _ = w.Write([]byte("mock package2 content"))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -102,7 +102,7 @@ func TestFetchPackages_HTTPErrors(t *testing.T) {
 			w.WriteHeader(http.StatusInternalServerError)
 		case "/success.rpm":
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("success content"))
+			_, _ = w.Write([]byte("success content"))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -148,7 +148,7 @@ func TestFetchPackages_ExistingFiles(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestCount++
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("new content"))
+		_, _ = w.Write([]byte("new content"))
 	}))
 	defer server.Close()
 
@@ -194,7 +194,7 @@ func TestFetchPackages_ZeroSizeFile(t *testing.T) {
 	// Create test HTTP server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("new content"))
+		_, _ = w.Write([]byte("new content"))
 	}))
 	defer server.Close()
 
@@ -237,7 +237,7 @@ func TestFetchPackages_MultipleWorkers(t *testing.T) {
 		// Small delay to test concurrency
 		time.Sleep(10 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(fmt.Sprintf("content for %s", r.URL.Path)))
+		_, _ = w.Write([]byte(fmt.Sprintf("content for %s", r.URL.Path)))
 	}))
 	defer server.Close()
 
@@ -292,7 +292,7 @@ func TestFetchPackages_InvalidDestDir(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("test content"))
+		_, _ = w.Write([]byte("test content"))
 	}))
 	defer server.Close()
 
@@ -342,7 +342,7 @@ func TestFetchPackages_SlowServer(t *testing.T) {
 		// Simulate slow server - but not too slow to make test unbearable
 		time.Sleep(100 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("slow content"))
+		_, _ = w.Write([]byte("slow content"))
 	}))
 	defer server.Close()
 

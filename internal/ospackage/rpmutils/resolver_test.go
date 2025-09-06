@@ -261,10 +261,10 @@ func TestParsePrimary(t *testing.T) {
 					w.Header().Set("Content-Type", "application/gzip")
 					// Compress the content properly
 					content := compressGzip(t, tt.xmlContent)
-					w.Write(content)
+					_, _ = w.Write(content)
 				} else {
 					w.Header().Set("Content-Type", "text/xml")
-					w.Write([]byte(tt.xmlContent))
+					_, _ = w.Write([]byte(tt.xmlContent))
 				}
 			}))
 			defer server.Close()

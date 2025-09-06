@@ -242,7 +242,7 @@ func TestVerifyWithGoRpm(t *testing.T) {
 			},
 			setupPubkey: func() string {
 				pubkeyFile := filepath.Join(tmpDir, "invalid_pubkey.gpg")
-				os.WriteFile(pubkeyFile, []byte("invalid key content"), 0644)
+				_ = os.WriteFile(pubkeyFile, []byte("invalid key content"), 0644)
 				return pubkeyFile
 			},
 			expectedError: "loading keyring", // Will fail at keyring loading first
@@ -251,7 +251,7 @@ func TestVerifyWithGoRpm(t *testing.T) {
 			name: "non-existent pubkey file",
 			setupRPM: func() string {
 				rpmFile := filepath.Join(tmpDir, "test.rpm")
-				os.WriteFile(rpmFile, []byte("fake rpm"), 0644)
+				_ = os.WriteFile(rpmFile, []byte("fake rpm"), 0644)
 				return rpmFile
 			},
 			setupPubkey: func() string {
@@ -263,12 +263,12 @@ func TestVerifyWithGoRpm(t *testing.T) {
 			name: "invalid pubkey content",
 			setupRPM: func() string {
 				rpmFile := filepath.Join(tmpDir, "test.rpm")
-				os.WriteFile(rpmFile, []byte("fake rpm"), 0644)
+				_ = os.WriteFile(rpmFile, []byte("fake rpm"), 0644)
 				return rpmFile
 			},
 			setupPubkey: func() string {
 				pubkeyFile := filepath.Join(tmpDir, "invalid.gpg")
-				os.WriteFile(pubkeyFile, []byte("invalid content"), 0644)
+				_ = os.WriteFile(pubkeyFile, []byte("invalid content"), 0644)
 				return pubkeyFile
 			},
 			expectedError: "loading keyring",
@@ -277,12 +277,12 @@ func TestVerifyWithGoRpm(t *testing.T) {
 			name: "invalid rpm content",
 			setupRPM: func() string {
 				rpmFile := filepath.Join(tmpDir, "invalid.rpm")
-				os.WriteFile(rpmFile, []byte("not an rpm file"), 0644)
+				_ = os.WriteFile(rpmFile, []byte("not an rpm file"), 0644)
 				return rpmFile
 			},
 			setupPubkey: func() string {
 				pubkeyFile := filepath.Join(tmpDir, "invalid_pubkey.gpg")
-				os.WriteFile(pubkeyFile, []byte("invalid key content"), 0644)
+				_ = os.WriteFile(pubkeyFile, []byte("invalid key content"), 0644)
 				return pubkeyFile
 			},
 			expectedError: "loading keyring", // Will fail at keyring loading first
