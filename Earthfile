@@ -33,7 +33,7 @@ ENV PATH="${GOBIN}:${PATH}"
 # Only install absolutely essential packages that might be missing
 # Use --no-install-recommends and || true to continue even if some fail
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    bc bash \
+    bc bash rpm mmdebstrap dosfstools sbsigntool rpm mmdebstrap xorriso grub-common cryptsetup \
     || echo "Some packages failed to install, continuing..."
 
 golang-base:
