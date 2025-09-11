@@ -47,6 +47,11 @@ jobs:
           else
             echo "⚠️ Found $RESULT_COUNT security issue(s) in GitHub Actions workflows"
             echo "Details:"
-            jq -r '.runs[].results[] | "- \(.ruleId): \(.message.text)"' zizmor_scan_report.sarif
+            jq -r '.runs[].results[] | 
+              "📄 File: " + (.locations[0].physicalLocation.artifactLocation.uri // "unknown") + 
+              "\n🔍 Rule: " + .ruleId + 
+              "\n📝 Issue: " + .message.text + 
+              "\n" + (if .locations[0].physicalLocation.region.startLine then "📍 Line: " + (.locations[0].physicalLocation.region.startLine | tostring) else "" end) + 
+              "\n---"' zizmor_scan_report.sarif
             exit 1
           fi
