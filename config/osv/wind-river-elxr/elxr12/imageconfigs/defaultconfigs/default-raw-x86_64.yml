@@ -84,6 +84,7 @@ systemConfig:
     - xterm
     - dracut
     - systemd-boot
+    - elxr-archive-keyring
 
   additionalFiles:
     - local: ../additionalfiles/dhcp.network
