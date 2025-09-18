@@ -133,6 +133,11 @@ func (m *mockChrootEnv) AptInstallPackage(packageName, installRoot string, repoS
 	// Mock implementation: always succeed
 	return nil
 }
+
+func (m *mockChrootEnv) UpdateSystemPkgs(template *config.ImageTemplate) error {
+	return nil
+}
+
 func TestNewIsoMaker(t *testing.T) {
 	originalExecutor := shell.Default
 	defer func() { shell.Default = originalExecutor }()

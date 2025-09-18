@@ -42,7 +42,7 @@ func Register(targetOs, targetDist, targetArch string) error {
 		return fmt.Errorf("failed to inject chroot dependency: %w", err)
 	}
 	provider.Register(&eLxr{
-		chrootEnv:   chrootEnv,
+		chrootEnv: chrootEnv,
 	}, targetDist, targetArch)
 
 	return nil
@@ -132,23 +132,22 @@ func (p *eLxr) buildInitrdImage(template *config.ImageTemplate) error {
 	// Create InitrdMaker with template (dependency injection)
 	initrdMaker, err := initrdmaker.NewInitrdMaker(p.chrootEnv, template)
 	if err != nil {
-                return fmt.Errorf("failed to create initrd maker: %w", err)
-        }
+		return fmt.Errorf("failed to create initrd maker: %w", err)
+	}
 
-        // Use the maker
+	// Use the maker
 	if err := initrdMaker.Init(); err != nil {
-                return fmt.Errorf("failed to initialize initrd image maker: %w", err)
-        }
-        if err := initrdMaker.BuildInitrdImage(); err != nil {
-                return fmt.Errorf("failed to build initrd image: %w", err)
-        }
-        if err := initrdMaker.CleanInitrdRootfs(); err != nil {
-                return fmt.Errorf("failed to clean initrd rootfs: %w", err)
-        }
-	
+		return fmt.Errorf("failed to initialize initrd image maker: %w", err)
+	}
+	if err := initrdMaker.BuildInitrdImage(); err != nil {
+		return fmt.Errorf("failed to build initrd image: %w", err)
+	}
+	if err := initrdMaker.CleanInitrdRootfs(); err != nil {
+		return fmt.Errorf("failed to clean initrd rootfs: %w", err)
+	}
+
 	return nil
 }
-
 
 func (p *eLxr) buildIsoImage(template *config.ImageTemplate) error {
 	// Create IsoMaker with template (dependency injection)
@@ -208,7 +207,10 @@ func (p *eLxr) installHostDependency() error {
 }
 
 func (p *eLxr) downloadImagePkgs(template *config.ImageTemplate) error {
-	pkgList := append(template.GetKernelPackages(), template.GetPackages()...)
+	if err := p.chrootEnv.UpdateSystemPkgs(template); err != nil {
+		return fmt.Errorf("failed to update system packages: %w", err)
+	}
+	pkgList := template.GetPackages()
 	providerId := p.Name(template.Target.Dist, template.Target.Arch)
 	globalCache, err := config.CacheDir()
 	if err != nil {

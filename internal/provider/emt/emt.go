@@ -5,7 +5,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"net/http"
 	"path/filepath"
 	"strings"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/open-edge-platform/image-composer/internal/ospackage/rpmutils"
 	"github.com/open-edge-platform/image-composer/internal/provider"
 	"github.com/open-edge-platform/image-composer/internal/utils/logger"
+	"github.com/open-edge-platform/image-composer/internal/utils/network"
 	"github.com/open-edge-platform/image-composer/internal/utils/shell"
 	"github.com/open-edge-platform/image-composer/internal/utils/system"
 )
@@ -45,7 +45,7 @@ func Register(targetOs, targetDist, targetArch string) error {
 	}
 
 	provider.Register(&Emt{
-		chrootEnv:   chrootEnv,
+		chrootEnv: chrootEnv,
 	}, targetDist, targetArch)
 
 	return nil
@@ -59,7 +59,8 @@ func (p *Emt) Name(dist, arch string) string {
 // Init will initialize the provider, fetching repo configuration
 func (p *Emt) Init(dist, arch string) error {
 
-	resp, err := http.Get(configURL)
+	client := network.NewSecureHTTPClient()
+	resp, err := client.Get(configURL)
 	if err != nil {
 		log.Errorf("Downloading repo config %s failed: %v", configURL, err)
 		return err
@@ -144,19 +145,19 @@ func (p *Emt) buildInitrdImage(template *config.ImageTemplate) error {
 	// Create InitrdMaker with template (dependency injection)
 	initrdMaker, err := initrdmaker.NewInitrdMaker(p.chrootEnv, template)
 	if err != nil {
-                return fmt.Errorf("failed to create initrd maker: %w", err)
-        }
+		return fmt.Errorf("failed to create initrd maker: %w", err)
+	}
 
-        // Use the maker
+	// Use the maker
 	if err := initrdMaker.Init(); err != nil {
-                return fmt.Errorf("failed to initialize initrd image maker: %w", err)
-        }
-        if err := initrdMaker.BuildInitrdImage(); err != nil {
-                return fmt.Errorf("failed to build initrd image: %w", err)
-        }
-        if err := initrdMaker.CleanInitrdRootfs(); err != nil {
-                return fmt.Errorf("failed to clean initrd rootfs: %w", err)
-        }
+		return fmt.Errorf("failed to initialize initrd image maker: %w", err)
+	}
+	if err := initrdMaker.BuildInitrdImage(); err != nil {
+		return fmt.Errorf("failed to build initrd image: %w", err)
+	}
+	if err := initrdMaker.CleanInitrdRootfs(); err != nil {
+		return fmt.Errorf("failed to clean initrd rootfs: %w", err)
+	}
 
 	return nil
 }
@@ -216,6 +217,9 @@ func (p *Emt) installHostDependency() error {
 }
 
 func (p *Emt) downloadImagePkgs(template *config.ImageTemplate) error {
+	if err := p.chrootEnv.UpdateSystemPkgs(template); err != nil {
+		return fmt.Errorf("failed to update system packages: %w", err)
+	}
 	pkgList := template.GetPackages()
 	providerId := p.Name(template.Target.Dist, template.Target.Arch)
 	globalCache, err := config.CacheDir()
@@ -274,7 +278,9 @@ func loadRepoConfig(r io.Reader) (rpmutils.RepoConfig, error) {
 
 // fetchPrimaryURL downloads repomd.xml and returns the href of the primary metadata.
 func fetchPrimaryURL(repomdURL string) (string, error) {
-	resp, err := http.Get(repomdURL)
+
+	client := network.NewSecureHTTPClient()
+	resp, err := client.Get(repomdURL)
 	if err != nil {
 		return "", fmt.Errorf("GET %s: %w", repomdURL, err)
 	}

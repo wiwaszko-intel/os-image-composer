@@ -99,6 +99,10 @@ func (initrdMaker *InitrdMaker) GetInitrdRootfsPath() string {
 func (initrdMaker *InitrdMaker) DownloadInitrdPkgs() error {
 	log.Infof("Downloading packages for: %s", initrdMaker.template.GetImageName())
 
+	if err := initrdMaker.ChrootEnv.UpdateSystemPkgs(initrdMaker.template); err != nil {
+		return fmt.Errorf("failed to update system packages: %w", err)
+	}
+
 	pkgList := initrdMaker.template.GetPackages()
 	pkgType := initrdMaker.ChrootEnv.GetTargetOsPkgType()
 	if pkgType == "deb" {
