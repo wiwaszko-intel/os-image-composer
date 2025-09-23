@@ -20,6 +20,7 @@ Templates in the OS Image Composer tool are YAML files that deliver a straightfo
   - [Related Documentation](#related-documentation)
 
 
+
 ## What Are Templates and How Do They Work?
 
 Templates are predefined build specifications that serve as a foundation for building operating system images. Here's what templates empower you to do:
@@ -97,8 +98,7 @@ To learn about patterns that work well as templates, see [Common Build Patterns]
 ### Variable Substitution
 
 Templates support simple variable substitution using the `${variable_name}`
-syntax. When building an image from a template, you can provide values for these
-variables. See the [Build Specification File](./os-image-composer-cli-specification.md#build-specification-file) in the [command-line reference](./os-image-composer-cli-specification.md) for the complete structure of build specifications.
+syntax. When building an image from a template, you can provide values for these variables. See the [Build Specification File](./os-image-composer-cli-specification.md#build-specification-file) in the [command-line reference](./os-image-composer-cli-specification.md) for the complete structure of build specifications.
 
 ## Using Templates to Build Images
 
@@ -148,6 +148,7 @@ change.
 3. **Standardization**: Use templates to enforce your standards.
 
 To understand the role templates play in improving the efficiency of builds, see [Build Performance Optimization](./os-image-composer-build-process.md#build-performance-optimization).
+
 
 ## Conclusion
 
