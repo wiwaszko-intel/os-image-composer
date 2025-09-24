@@ -4,18 +4,21 @@ Templates in the OS Image Composer tool are YAML files that deliver a straightfo
 
 ## Contents
 
-- [What Are Templates and How Do They Work?](#what-are-templates-and-how-do-they-work)
+- [Understanding and Using Templates in OS Image Composer](#understanding-and-using-templates-in-os-image-composer)
+  - [Contents](#contents)
+  - [What Are Templates and How Do They Work?](#what-are-templates-and-how-do-they-work)
     - [Template Structure](#template-structure)
     - [Variable Substitution](#variable-substitution)
-- [Using Templates to Build Images](#using-templates-to-build-images)
-- [Template Storage](#template-storage)
-- [Template Variables](#template-variables)
-- [Best Practices](#best-practices)
+  - [Using Templates to Build Images](#using-templates-to-build-images)
+  - [Template Storage](#template-storage)
+  - [Template Variables](#template-variables)
+  - [Best Practices](#best-practices)
     - [Template Organization](#template-organization)
     - [Template Design](#template-design)
     - [Template Sharing](#template-sharing)
-- [Conclusion](#conclusion)
-- [Related Documentation](#related-documentation)
+  - [Conclusion](#conclusion)
+  - [Related Documentation](#related-documentation)
+
 
 
 ## What Are Templates and How Do They Work?
@@ -90,38 +93,37 @@ systemConfig:
     cmdline: "console=ttyS0,115200 console=tty0 loglevel=7"
 ```
 
-To learn about patterns that work well as templates, see [Common Build Patterns](./image-composer-build-process.md#common-build-patterns).  
+To learn about patterns that work well as templates, see [Common Build Patterns](./os-image-composer-build-process.md#common-build-patterns).  
   
 ### Variable Substitution
 
 Templates support simple variable substitution using the `${variable_name}`
-syntax. When building an image from a template, you can provide values for these
-variables. See the [Build Specification File](./image-composer-cli-specification.md#build-specification-file) in the [command-line reference](./image-composer-cli-specification.md) for the complete structure of build specifications.
+syntax. When building an image from a template, you can provide values for these variables. See the [Build Specification File](./os-image-composer-cli-specification.md#build-specification-file) in the [command-line reference](./os-image-composer-cli-specification.md) for the complete structure of build specifications.
 
 ## Using Templates to Build Images
 
-The OS `image-composer build` command creates custom operating system images from an image template file. With templates, you can customize OS images to fulfill your requirements. You can also define variables in a separate YAML file and override variables when you run a command. With the `image-composer template render` command, you generate a specification file to review or modify it before building it.
+The OS `os-image-composer build` command creates custom operating system images from an image template file. With templates, you can customize OS images to fulfill your requirements. You can also define variables in a separate YAML file and override variables when you run a command. With the `os-image-composer template render` command, you generate a specification file to review or modify it before building it.
 
 ```bash
 # Build an image using a template
-image-composer build azl3-x86_64-edge-raw.yml
+os-image-composer build azl3-x86_64-edge-raw.yml
 
 ```
 
-See the [Build Command](./image-composer-cli-specification.md#build-command) in the command-line reference. 
+See the [Build Command](./os-image-composer-cli-specification.md#build-command) in the command-line reference. 
 
 ## Template Storage
 
 Templates in the OS Image Composer tool are stored in two main locations:
 
-1. System Templates: `/etc/image-composer/templates/`
-2. User Templates: `~/.config/image-composer/templates/`
+1. System Templates: `/etc/os-image-composer/templates/`
+2. User Templates: `~/.config/os-image-composer/templates/`
 
 ## Template Variables
 
-To find out how variables affect each build stage, see [Build Stages in Detail](./image-composer-build-process.md#build-stages-in-detail).
+To find out how variables affect each build stage, see [Build Stages in Detail](./os-image-composer-build-process.md#build-stages-in-detail).
 
-For details on customizations that you can apply, see the [Configuration Stage](./image-composer-build-process.md#4-configuration-stage) of the build process.
+For details on customizations that you can apply, see the [Configuration Stage](./os-image-composer-build-process.md#4-configuration-stage) of the build process.
 
 ## Best Practices
 
@@ -145,7 +147,8 @@ change.
 2. **Documentation**: Maintain a simple catalog of your templates.
 3. **Standardization**: Use templates to enforce your standards.
 
-To understand the role templates play in improving the efficiency of builds, see [Build Performance Optimization](./image-composer-build-process.md#build-performance-optimization).
+To understand the role templates play in improving the efficiency of builds, see [Build Performance Optimization](./os-image-composer-build-process.md#build-performance-optimization).
+
 
 ## Conclusion
 
@@ -161,6 +164,6 @@ practical reuse rather than complex inheritance or versioning schemes.
 
 ## Related Documentation
 
-- [Understanding the Build Process](./image-composer-build-process.md)
-- [Multiple Package Repository Support](./image-composer-multi-repo-support.md)
-- [OS Image Composer CLI Reference](./image-composer-cli-specification.md)
+- [Understanding the Build Process](./os-image-composer-build-process.md)
+- [Multiple Package Repository Support](./os-image-composer-multi-repo-support.md)
+- [OS Image Composer CLI Reference](./os-image-composer-cli-specification.md)

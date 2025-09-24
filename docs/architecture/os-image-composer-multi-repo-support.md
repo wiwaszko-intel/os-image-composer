@@ -9,17 +9,31 @@ A major feature of the OS Image Composer tool is its ability to let you add mult
 
 ## Contents
 
-- [Setting Multiple Repositories in the User Template](#setting-multiple-repositories-in-the-user-template)
-- [Package Conflict Priority Consideration](#package-conflict-priority-consideration)
+- [Multiple Package Repo Support](#multiple-package-repo-support)
+  - [Contents](#contents)
+  - [Setting Multiple Repositories in the User Template](#setting-multiple-repositories-in-the-user-template)
+  - [Package Conflict Priority Consideration](#package-conflict-priority-consideration)
     - [Priority Rules](#priority-rules)
     - [Resolution Process](#resolution-process)
     - [Conflict Resolution Examples](#conflict-resolution-examples)
+      - [Example 1: Different versions across repositories](#example-1-different-versions-across-repositories)
+      - [Example 2: Same version in multiple repositories](#example-2-same-version-in-multiple-repositories)
+      - [Example 3: Mixed scenario](#example-3-mixed-scenario)
     - [Dependencies Package](#dependencies-package)
-- [Architectural Design](#architectural-design)
+      - [Dependency Resolution in a Multi-Repository Environment](#dependency-resolution-in-a-multi-repository-environment)
+      - [Dependency Resolution Rules](#dependency-resolution-rules)
+      - [Dependency Resolution Examples](#dependency-resolution-examples)
+        - [Example 1: Parent package with dependencies](#example-1-parent-package-with-dependencies)
+        - [Example 2: Transitive dependencies](#example-2-transitive-dependencies)
+        - [Example 3: Fallback to base repository](#example-3-fallback-to-base-repository)
+        - [Example 4: Unresolvable dependency](#example-4-unresolvable-dependency)
+        - [Example 5: Conflicting dependency versions](#example-5-conflicting-dependency-versions)
+      - [Benefits of Repository Affinity](#benefits-of-repository-affinity)
+  - [Architectural Design](#architectural-design)
     - [Single Repository Support](#single-repository-support)
     - [Multiple Repositories Support](#multiple-repositories-support)
     - [Multiple Repository Flow](#multiple-repository-flow)
-- [Related Documentation](#related-documentation)
+  - [Related Documentation](#related-documentation)
 
 ## Setting Multiple Repositories in the User Template
 
@@ -223,7 +237,7 @@ graph TD
 
 ## Related Documentation
 
-- [Understanding the Build Process](./image-composer-build-process.md)
-- [Understanding Templates](./image-composer-templates.md)
-- [Multiple Package Repository Support](./image-composer-multi-repo-support.md)
-- [OS Image Composer CLI Reference](./image-composer-cli-specification.md)
+- [Understanding the Build Process](./os-image-composer-build-process.md)
+- [Understanding Templates](./os-image-composer-templates.md)
+- [Multiple Package Repository Support](./os-image-composer-multi-repo-support.md)
+- [OS Image Composer CLI Reference](./os-image-composer-cli-specification.md)

@@ -6,18 +6,20 @@ common operating systems for the distributed edge. You can customize the content
 
 ## Contents
 
-- [Supported Distributions](#supported-distributions)
-- [Overview](#overview)
-- [OS Image Composer System Network Context](#os-image-composer-system-network-context)
+- [OS Image Composer Architecture](#os-image-composer-architecture)
+  - [Contents](#contents)
+  - [Supported Distributions](#supported-distributions)
+  - [Overview](#overview)
+  - [OS Image Composer System Network Context](#os-image-composer-system-network-context)
     - [Network Security Considerations](#network-security-considerations)
     - [Package Sign Verification](#package-sign-verification)
-- [Components Overview](#components-overview)
+  - [Components Overview](#components-overview)
     - [Toolchain](#toolchain)
     - [Package](#package)
     - [Image](#image)
     - [Utilities](#utilities)
-- [Operational Flow](#operational-flow)
-- [Related Documentation](#related-documentation)
+  - [Operational Flow](#operational-flow)
+  - [Related Documentation](#related-documentation)
 
 ## Supported Distributions
 
@@ -45,7 +47,7 @@ The following diagram shows the input and output of the OS Image Composer tool:
 
 The following diagram shows the network context of the OS Image Composer tool:
 
-![OS Image Composer Network Diagram](assets/image-composer-network-diagram.drawio.svg).
+![OS Image Composer Network Diagram](assets/os-image-composer-network-diagram.drawio.svg).
 
 The diagram illustrates how different components of the product's system architecture communicate with each other.
 
@@ -70,10 +72,10 @@ config:
       hideEmptyMembersBox: true
 ---
 classDiagram
-    Image Composer <|-- Toolchain
-    Image Composer <|-- Package
-    Image Composer <|-- Image
-    Image Composer <|-- Utils
+    OS Image Composer <|-- Toolchain
+    OS Image Composer <|-- Package
+    OS Image Composer <|-- Image
+    OS Image Composer <|-- Utils
 ```
 
 ### Toolchain
@@ -239,7 +241,7 @@ flowchart TD
 
 ## Related Documentation
 
-- [Understanding the Build Process](./image-composer-build-process.md)
-- [Understanding Templates](./image-composer-templates.md)
-- [Multiple Package Repository Support](./image-composer-multi-repo-support.md)
-- [OS Image Composer CLI Reference](./image-composer-cli-specification.md)
+- [Understanding the Build Process](./os-image-composer-build-process.md)
+- [Understanding Templates](./os-image-composer-templates.md)
+- [Multiple Package Repository Support](./os-image-composer-multi-repo-support.md)
+- [OS Image Composer CLI Reference](./os-image-composer-cli-specification.md)

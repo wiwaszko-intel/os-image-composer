@@ -71,15 +71,15 @@ build:
         fi
     
     RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 GOARCH=amd64 GOOS=linux \
-        go build -trimpath -o build/image-composer \
+        go build -trimpath -o build/os-image-composer \
             -ldflags "-s -w -extldflags '-static' \
                      -X 'github.com/open-edge-platform/os-image-composer/internal/config/version.Version=$version' \
                      -X 'github.com/open-edge-platform/os-image-composer/internal/config/version.Toolname=Image-Composer' \
                      -X 'github.com/open-edge-platform/os-image-composer/internal/config/version.Organization=Open Edge Platform' \
                      -X 'github.com/open-edge-platform/os-image-composer/internal/config/version.BuildDate=$(cat /tmp/build_date)' \
                      -X 'github.com/open-edge-platform/os-image-composer/internal/config/version.CommitSHA=$(cat /tmp/commit_sha)'" \
-            ./cmd/image-composer
-    SAVE ARTIFACT build/image-composer AS LOCAL ./build/image-composer
+            ./cmd/os-image-composer
+    SAVE ARTIFACT build/os-image-composer AS LOCAL ./build/os-image-composer
 
 lint:
     FROM +golang-base
