@@ -26,7 +26,7 @@ go build -buildmode=pie -ldflags "-s -w" ./cmd/os-image-composer
 # Or run it directly:
 go run ./cmd/os-image-composer --help
 ```
-Using Earthly framework produces a reproducible build that automatically includes the version number (from the `--version` parameter), the build date (the current UTC date), and the Git commit SHA (current repository commit).
+Using the Earthly framework produces a reproducible build that automatically includes the version number (from the `--version` parameter), the build date (the current UTC date), and the Git commit SHA (current repository commit).
 
 ```bash
 # Default build
