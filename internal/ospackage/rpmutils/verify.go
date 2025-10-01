@@ -50,7 +50,6 @@ func VerifyAll(paths []string, pubkeyPaths []string, workers int) []Result {
 	)
 
 	// worker goroutines
-	pubkeyPath := pubkeyPaths[0] //todo: temporary change to support only one key
 	for i := 0; i < workers; i++ {
 		wg.Add(1)
 		go func() {
@@ -61,16 +60,31 @@ func VerifyAll(paths []string, pubkeyPaths []string, workers int) []Result {
 				bar.Describe("verifying " + name)
 
 				start := time.Now()
-				err := verifyWithGoRpm(rpmPath, pubkeyPath)
-				ok := err == nil
 
-				if err != nil {
-					log.Errorf("verification %s failed (key=%s): %v", rpmPath, pubkeyPath, err)
+				// Try verification with each public key until one succeeds
+				var err error
+				var allErrors []error
+				verified := false
+
+				for _, pubkeyPath := range pubkeyPaths {
+					err = verifyWithGoRpm(rpmPath, pubkeyPath)
+					if err == nil {
+						// Verification succeeded with this key
+						verified = true
+						break
+					}
+					allErrors = append(allErrors, fmt.Errorf("key %s: %w", filepath.Base(pubkeyPath), err))
+				}
+
+				// Set final error if all keys failed
+				if !verified {
+					err = fmt.Errorf("verification failed with all %d keys: %v", len(pubkeyPaths), allErrors)
+					log.Errorf("verification %s failed with all keys: %v", rpmPath, err)
 				}
 
 				results[idx] = Result{
 					Path:     rpmPath,
-					OK:       ok,
+					OK:       verified,
 					Duration: time.Since(start),
 					Error:    err,
 				}

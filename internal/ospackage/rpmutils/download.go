@@ -286,14 +286,8 @@ func Validate(destDir string) error {
 	for _, userRepo := range UserRepo {
 		if userRepo.PKey != "" {
 			gpgKeyURLs = append(gpgKeyURLs, userRepo.PKey)
-		}
-		log.Infof("yockgen user repo: %s", userRepo.PKey)
-	}
-
-	// Add user repo GPG keys
-	for _, userRepo := range UserRepo {
-		if userRepo.PKey != "" {
-			gpgKeyURLs = append(gpgKeyURLs, userRepo.PKey)
+		} else {
+			return fmt.Errorf("no GPG key URL configured for user repo: %s", userRepo.URL)
 		}
 	}
 
