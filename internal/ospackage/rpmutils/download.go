@@ -1,12 +1,16 @@
 package rpmutils
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/ProtonMail/go-crypto/openpgp"
+	"github.com/ProtonMail/go-crypto/openpgp/armor"
 
 	"github.com/open-edge-platform/os-image-composer/internal/config"
 	"github.com/open-edge-platform/os-image-composer/internal/config/manifest"
@@ -147,7 +151,72 @@ func isValidVersionFormat(s string) bool {
 	return false
 }
 
-// createTempGPGKeyFiles downloads multiple GPG keys from URLs and creates temporary files.
+// isBinaryGPGKey checks if the data appears to be a binary GPG key
+func isBinaryGPGKey(data []byte) bool {
+	// Check for ASCII armored format first
+	if bytes.HasPrefix(data, []byte("-----BEGIN PGP PUBLIC KEY BLOCK-----")) {
+		return false // This is ASCII armored, not binary
+	}
+
+	// Try to parse as OpenPGP packet to determine if it's binary
+	reader := bytes.NewReader(data)
+	_, err := openpgp.ReadKeyRing(reader)
+	if err == nil {
+		return true // Successfully parsed as binary OpenPGP
+	}
+
+	// Additional heuristic: if it contains mostly non-printable characters
+	if len(data) < 4 {
+		return false
+	}
+
+	printableCount := 0
+	checkLength := len(data)
+	if checkLength > 100 {
+		checkLength = 100
+	}
+
+	for i := 0; i < checkLength; i++ {
+		if data[i] >= 32 && data[i] <= 126 {
+			printableCount++
+		}
+	}
+
+	// If less than 70% printable characters, likely binary
+	return float64(printableCount)/float64(checkLength) < 0.7
+}
+
+// convertBinaryGPGToAscii converts binary GPG key to ASCII armored format using Go crypto
+func convertBinaryGPGToAscii(binaryData []byte) ([]byte, error) {
+	// Try to parse the binary data as an OpenPGP key ring
+	reader := bytes.NewReader(binaryData)
+	keyRing, err := openpgp.ReadKeyRing(reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse binary GPG key: %w", err)
+	}
+
+	var armoredBuf bytes.Buffer
+
+	// Create ASCII armor encoder
+	armorWriter, err := armor.Encode(&armoredBuf, openpgp.PublicKeyType, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create armor encoder: %w", err)
+	}
+
+	// Serialize each entity in the keyring
+	for _, entity := range keyRing {
+		if err := entity.Serialize(armorWriter); err != nil {
+			armorWriter.Close()
+			return nil, fmt.Errorf("failed to serialize key entity: %w", err)
+		}
+	}
+
+	if err := armorWriter.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close armor encoder: %w", err)
+	}
+
+	return armoredBuf.Bytes(), nil
+} // createTempGPGKeyFiles downloads multiple GPG keys from URLs and creates temporary files.
 // Returns the file paths and a cleanup function. The caller is responsible for calling cleanup.
 func createTempGPGKeyFiles(gpgKeyURLs []string) (keyPaths []string, cleanup func(), err error) {
 	log := logger.Logger()
@@ -163,6 +232,9 @@ func createTempGPGKeyFiles(gpgKeyURLs []string) (keyPaths []string, cleanup func
 
 	// Download and create temp files for each GPG key
 	for i, gpgKeyURL := range gpgKeyURLs {
+		// Check if the GPG key URL is a binary file (ends with .gpg or .bin)
+		isBinary := strings.HasSuffix(strings.ToLower(gpgKeyURL), ".gpg") || strings.HasSuffix(strings.ToLower(gpgKeyURL), ".bin")
+
 		resp, err := client.Get(gpgKeyURL)
 		if err != nil {
 			// Cleanup any files created so far
@@ -182,6 +254,25 @@ func createTempGPGKeyFiles(gpgKeyURLs []string) (keyPaths []string, cleanup func
 				os.Remove(f.Name())
 			}
 			return nil, nil, fmt.Errorf("read GPG key body from %s: %w", gpgKeyURL, err)
+		}
+
+		// If it's a binary GPG key, we need to handle it differently
+		if isBinary {
+			log.Infof("GPG key %s is binary format, checking if conversion is needed", gpgKeyURL)
+
+			// Check if the downloaded data is actually binary
+			if isBinaryGPGKey(keyBytes) {
+				log.Infof("Converting binary GPG key to ASCII armored format")
+				convertedBytes, err := convertBinaryGPGToAscii(keyBytes)
+				if err != nil {
+					log.Warnf("Failed to convert binary GPG key to ASCII: %v, using original data", err)
+				} else {
+					keyBytes = convertedBytes
+					log.Infof("Successfully converted binary GPG key to ASCII armored format")
+				}
+			} else {
+				log.Infof("GPG key data appears to be ASCII armored already")
+			}
 		}
 
 		log.Infof("fetched GPG key %d (%d bytes) from %s", i+1, len(keyBytes), gpgKeyURL)
