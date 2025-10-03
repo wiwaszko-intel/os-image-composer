@@ -328,6 +328,15 @@ func ParseRepositoryMetadata(baseURL, gzHref string) ([]ospackage.PackageInfo, e
 		}
 	}
 
+	// // Open the file once before the loop for efficiency
+	// f, err := os.OpenFile("yockgen-azl-all.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	// if err == nil {
+	// 	defer f.Close()
+	// 	for _, pi := range infos {
+	// 		fmt.Fprintln(f, pi.Name, pi.RequiresVer)
+	// 	}
+	// }
+
 	return infos, nil
 }
 
@@ -649,9 +658,13 @@ func ResolveDependencies02(requested []ospackage.PackageInfo, all []ospackage.Pa
 				continue
 			}
 			if _, seen := neededSet[depName]; seen {
+
 				// Check if the new package can use the existing package. If it cannot, then error out; otherwise, continue.
 				// get the package from current queue based on name
-				existing := findAllCandidates(depName, queue)
+				existing, err := findAllCandidates(cur, depName, queue)
+				if err != nil {
+					return nil, fmt.Errorf("failed to find candidates during checking existing package for dependency %q of package %q: %v", depName, cur.Name, err)
+				}
 				if len(existing) > 0 {
 					// check if the existing package can satisfy the version requirement
 					_, err := resolveMultiCandidates(cur, existing)
@@ -670,7 +683,11 @@ func ResolveDependencies02(requested []ospackage.PackageInfo, all []ospackage.Pa
 				continue
 			}
 
-			candidates := findAllCandidates(depName, all)
+			candidates, err := findAllCandidates(cur, depName, all)
+			if err != nil {
+				return nil, fmt.Errorf("failed to find candidates for dependency %q of package %q: %v", depName, cur.Name, err)
+			}
+
 			if len(candidates) >= 1 {
 				// Pick the candidate using the resolver and add it to the queue
 				chosenCandidate, err := resolveMultiCandidates(cur, candidates)
@@ -699,19 +716,30 @@ func ResolveDependencies02(requested []ospackage.PackageInfo, all []ospackage.Pa
 
 	//testing: end
 
+	// Open the file once before the loop for efficiency
+	// f, err := os.OpenFile("yockgen-azl-requested.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	// if err == nil {
+	// 	defer f.Close()
+	// 	for _, pi := range result {
+	// 		fmt.Fprintln(f, pi.Name, pi.RequiresVer)
+	// 	}
+	// }
+
 	log.Infof("Successfully resolved %d packages from %d requested packages", len(result), len(requested))
 	return result, nil
 	// return nil, fmt.Errorf("yockgen: not implemented")
 }
 
-func findAllCandidates(depName string, all []ospackage.PackageInfo) []ospackage.PackageInfo {
+func findAllCandidates(parent ospackage.PackageInfo, depName string, all []ospackage.PackageInfo) ([]ospackage.PackageInfo, error) {
 	// log := logger.Logger()
 
 	var candidates []ospackage.PackageInfo
 
-	// First pass: look for exact name matches
+	// First pass: look for exact name (canonical name) matches
 	for _, pi := range all {
-		if pi.Name == depName {
+		// Extract the base package name (everything before the first '-' that starts a version)
+		baseName := extractBasePackageName(pi.Name)
+		if baseName == depName {
 			candidates = append(candidates, pi)
 		}
 	}
@@ -739,5 +767,26 @@ func findAllCandidates(depName string, all []ospackage.PackageInfo) []ospackage.
 		}
 	}
 
-	return candidates
+	// yockgen Instead of matching the whole string, check if depName has a prefix "curl-libs-8."
+	// if strings.HasPrefix(depName, "curl") {
+
+	// 	f, err := os.OpenFile("/data/yockgen/debug.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	// 	if err == nil {
+	// 		defer f.Close()
+	// 		fmt.Fprintf(f, "yockgen1: dep=%s pkg=%s version=%s", depName, parent.Name, parent.Version)
+	// 		for _, itx := range parent.RequiresVer {
+	// 			if strings.HasPrefix(itx, "curl") {
+	// 				fmt.Fprintf(f, " depend=%s", itx)
+	// 			}
+	// 		}
+	// 		for _, itx := range candidates {
+	// 			fmt.Fprintf(f, " candidate=%s %s\n", itx.Name, itx.Version)
+
+	// 		}
+
+	// 		fmt.Fprintf(f, "\n\n")
+	// 	}
+	// }
+
+	return candidates, nil
 }

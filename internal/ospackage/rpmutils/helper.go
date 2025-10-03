@@ -454,3 +454,28 @@ func compareVersions(v1, v2 string) int {
 	cmp, _ := comparePackageVersions(ver1, ver2)
 	return cmp
 }
+
+// extractBasePackageName extracts the base package name from a full package filename
+// e.g., "curl-8.8.0-2.azl3.x86_64.rpm" -> "curl"
+// e.g., "curl-devel-8.8.0-1.azl3.x86_64.rpm" -> "curl-devel"
+func extractBasePackageName(fullName string) string {
+	// Remove .rpm suffix if present
+	name := strings.TrimSuffix(fullName, ".rpm")
+
+	// Split by '-' and find where the version starts
+	parts := strings.Split(name, "-")
+	if len(parts) < 2 {
+		return name
+	}
+
+	// Find the first part that looks like a version (starts with digit)
+	for i := 1; i < len(parts); i++ {
+		if len(parts[i]) > 0 && (parts[i][0] >= '0' && parts[i][0] <= '9') {
+			// Everything before this index is the package name
+			return strings.Join(parts[:i], "-")
+		}
+	}
+
+	// If no version-like part found, return the whole name
+	return name
+}
