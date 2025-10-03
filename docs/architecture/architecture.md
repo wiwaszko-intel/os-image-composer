@@ -4,30 +4,28 @@ OS Image Composer is a generic toolkit to build operating system
 images from pre-built artifacts such as `rpm` and `deb` in order to support a range of
 common operating systems for the distributed edge. You can customize the content of the operating system to suit your requirements, applications, and workloads.
 
-## Contents
+## Table of Contents
 
-- [OS Image Composer Architecture](#os-image-composer-architecture)
-  - [Contents](#contents)
-  - [Supported Distributions](#supported-distributions)
-  - [Overview](#overview)
-  - [OS Image Composer System Network Context](#os-image-composer-system-network-context)
-    - [Network Security Considerations](#network-security-considerations)
-    - [Package Sign Verification](#package-sign-verification)
-  - [Components Overview](#components-overview)
-    - [Toolchain](#toolchain)
-    - [Package](#package)
-    - [Image](#image)
-    - [Utilities](#utilities)
-  - [Operational Flow](#operational-flow)
-  - [Related Documentation](#related-documentation)
+- [Supported Distributions](#supported-distributions)
+- [Overview](#overview)
+- [OS Image Composer System Network Context](#os-image-composer-system-network-context)
+  - [Network Security Considerations](#network-security-considerations)
+  - [Package Sign Verification](#package-sign-verification)
+- [Components Overview](#components-overview)
+  - [Chroot](#chroot)
+  - [Image](#image)
+  - [Config](#config)
+  - [OSPackage](#ospackage)
+- [Operational Flow](#operational-flow)
+- [Related Documentation](#related-documentation)
 
 ## Supported Distributions
 
 The OS Image Composer tool will initially support the following Linux distributions:
 
-* [Edge Microvisor Toolkit](https://github.com/open-edge-platform/edge-microvisor-toolkit) 3.0
-* [Azure Linux](https://github.com/microsoft/azurelinux) 3.0
-* [Wind River eLxr](https://www.windriver.com/blog/Introducing-eLxr)
+- [Edge Microvisor Toolkit](https://github.com/open-edge-platform/edge-microvisor-toolkit) 3.0
+- [Azure Linux](https://github.com/microsoft/azurelinux) 3.0
+- [Wind River eLxr](https://www.windriver.com/blog/Introducing-eLxr)
 
 ## Overview
 
@@ -52,161 +50,56 @@ The following diagram shows the network context of the OS Image Composer tool:
 The diagram illustrates how different components of the product's system architecture communicate with each other.
 
 ### Network Security Considerations
+
 The OS Image Composer tool downloads required packages using HTTP requests to the distribution specific package repos over TLS 1.2+ connections. Each of the package repos does server-side validation on the package download requests so it is expected that the system running the OS Image Composer tool is provisioned with a CA root chain.
 
 ### Package Sign Verification
+
 When packages are downloaded, they are verified for integrity by using the GPG Public Keys and SHA256/MD5 checksum published at the package repositories.
 
 ## Components Overview
 
 The following diagram outlines the high-level components of the OS Image Composer tool:
 
-![components](assets/components.drawio.svg)
+![components high level view](assets/components.drawio.svg)
 
-The tools for composing an image fall into three general groups: the toolchain, package, and image. For modularity, each group contains a set of the components for the OS Image Composer tool's functions. The toolchain libraries focus on building and setting up the image build workspace. The package libraries include the package providers for each supported operating system. And the image libraries provide the general functions to build OS images.
+The tools for composing an image are grouped under following components: **Provider**, **Chroot**, **Image**, **OsPackage**, and **Config**. For modularity, each group contains a set of the components for the OS Image Composer tool's functions.
 
-```mermaid
----
-config:
-    class:
-      hideEmptyMembersBox: true
----
-classDiagram
-    OS Image Composer <|-- Toolchain
-    OS Image Composer <|-- Package
-    OS Image Composer <|-- Image
-    OS Image Composer <|-- Utils
-```
+The **provider** component takes data from *config* as its input, then calls **chroot**, **image** and **OsPackage** components to set up buidling the image. **Chroot** libraries are used to create ChrootEnv for building the OS Image. The **image** libraries provide the general functions for building OS images. The **OsPackage** libraries include utilities for handling debian and rpm packages. The **config** component contains configuration data for the image that will be created.
 
-### Toolchain
-
-```mermaid
----
-config:
-    class:
-      hideEmptyMembersBox: true
----
-classDiagram
-    Toolchain <|-- Chrootenv
-    Toolchain <|-- ImageConfig
-    Toolchain <|-- BuildCache
-    Chrootenv <|-- hostenv
-    Chrootenv <|-- chrootbuild
-    Chrootenv <|-- chrootenv
-    ImageConfig <|-- configparse
-    ImageConfig <|-- configverify
-    ImageConfig <|-- configmanifest
-    BuildCache <|-- imagecache
-    BuildCache <|-- pkgcache
-```
-The host system should be running a validated and supported Linux distribution
-such as Ubuntu 24.04. The OS Image Composer tool implements all the common business
-logic, which remains the same regardless of which distribution you are building
-an image for. Providers exists for the supported operating systems with a
-interface definition that each provider needs to implement to decouple
-distribution-specific functionality from the core and common business logic.
+### Chroot
 
 The OS Image Composer tool generates a `chroot` environment, which is used for
 the image composition and creation process which is isolated from the host
 operating file system. Packages are fetched, with help from a provider, and
 cached locally before the image is created.
 
-| SW Component | Description |
-| -------- | ------- |
-|hostenv|Detect host OS info and install tool dependencies.|
-|chrootbuild|Build the chrootenv tarball for the target OS.|
-|chrootenv|Set up chrootenv and initialize the local package cache for the target OS.|
-|configparse|Parse and verify the target OS and then generate the full JSON configuration for the image.|
-|configverify|Validate the full config with a JSON schema.|
-|configmanifest|Generate a manifest file for the target image.|
-|imagecache|Build output image cache handling.|
-|pkgcache|Pre-fetch packages cache handling.|
-
-### Package
-```mermaid
----
-config:
-    class:
-      hideEmptyMembersBox: true
----
-classDiagram
-    Package <-- elxrprovider
-    Package <-- emtprovider
-    Package <-- azlprovider
-    elxrprovider <|-- debprovider
-    emtprovider <|-- rpmprovider
-    azlprovider <|-- rpmprovider
-    debprovider <|-- provider
-    debprovider <|-- fetch
-    debprovider <|-- resolve
-    debprovider <|-- verify
-    debprovider <|-- install
-    rpmprovider <|-- provider
-    rpmprovider <|-- fetch
-    rpmprovider <|-- resolve
-    rpmprovider <|-- verify
-    rpmprovider <|-- install
-```
-Package is the libraries that provide the unified interface of the operating system vendors' remote package repositories. Given a package list, it analyzes the dependencies of the packages and downloads all the packages and the dependencies from the target operating system's remote package repository to a local cache.
-
-As packages are downloaded, it also verifies the signature of the packages to make sure it obtains the authenticated packages from the certificated repository. It also provides the unified interface to install the packages and the dependencies in the correct order into the image rootfs directory.
-
-| SW Component | Description |
-| -------- | ------- |
-|elxrprovider|Package provider specific for Wind River elxr.|
-|emtprovider|Package provider specific for Edge Microvisor Toolkit.|
-|azlprovider|Package provider specific for Azure Linux.|
-|debprovider|Generic package provider for debian package repository.|
-|rpmprovider|Generic package provider for RPM package repository.|
-|provider|Package provider abstract libraries, define the functions|
-|resolve|Package provider dependency solving library.|
-|fetch|Package provider pkg downloading library.|
-|verify|Package provider repo & pkg signature verify library.|
-|install|Package provider pkg installation library.|
-
 ### Image
 
-```mermaid
----
-config:
-    class:
-      hideEmptyMembersBox: true
----
-classDiagram
-    Image <|-- imagecompose
-    imagecompose <|-- rawmaker
-    imagecompose <|-- isomaker
-    imageinstall <|-- imagegenerate
-    rawmaker <|-- imagegenerate
-    rawmaker <|-- imagesecure
-    rawmaker <|-- imagesign
-    rawmaker <|-- imageconvert
-    isomaker <|-- imagegenerate
-    isomaker <|-- imagesecure
-    imagesecure <|-- imagegenerate
-    imagegenerate <|-- imagedisk
-    imagegenerate <|-- imageboot
-    imagegenerate <|-- imageos
-```
+![components - image](assets/components.drawio.image.svg)
 
-Image is the libraries that generate the image; its components are divided according to the generic processing flow. It creates and configures the required raw or ISO images according to an image configuration JSON file.
+*Image* groups the libraries that generate the image; they are divided according to the generic processing flow. It creates the required raw or ISO images according to an image configuration JSON file.
 
-| SW Component | Description |
-| -------- | ------- |
-|imagecompose|The top-level library that analyzes the CLI input parameters and then calls specific functions from the underlying libraries.|
-|rawmaker|Library to generate the RAW image.|
-|isomaker|Library to generate the ISO image.|
-|imagegenerate|Core library for image generation.|
-|imagesecure|Core library for the image immutability configurations.|
-|imagesign|Library for the image signing.|
-|imageconvert|Library for the raw image converting.|
-|imageinstall|Execution binary for the OS installation within the ISO installer image.|
-|imagedisk|Library for the disk partition creation and file system formatting.|
-|imageboot|Library for the bootloader configurations.|
-|imageos|Library for the general OS system configurations.|
+### Config
 
-### Utilities
-OS Image Composer and its providers use several common `packages`, such as those for logging. Those internal libraries are used by the toolchain, package, and image libraries.
+![components - Config](assets/components.drawio.config.svg)
+
+The *config* component contains configuration data for the image that will be created. It serves as input data for the *Provider*, which builds the OS image according to that data.
+
+<!--The host system should be running a validated and supported Linux distribution
+such as Ubuntu 24.04. The OS Image Composer tool implements all the common business
+logic, which remains the same regardless of a target OS distribution.
+Providers exists for the supported operating systems with an
+interface definition that each provider needs to implement to decouple
+distribution-specific functionality from the core and common business logic.-->
+
+### OsPackage
+
+![components - package](assets/components.drawio.OsPackage.svg)
+
+*Package* groups the libraries that provide the unified interface of the operating system vendors' remote package repositories. It analyzes given package lists and downloads all the packages and dependencies from the target operating system's remote package repository to a local cache.
+
+It also verifies signatures of the downloaded packages to ensure they are authenticated and from certified source. It also provides the unified interface to install the packages and the dependencies in the correct order into the image rootfs directory.
 
 ## Operational Flow
 

@@ -7,6 +7,7 @@ The OS Image Composer tool enables you to build minimal, verifiable, and secure 
 The OS Image Composer tool allows customization, enabling the inclusion of only necessary kernel features and executables, reducing the overall attack surface as defined by the user.
 
 ## 2. Secure Image Generation
+
 To generate secure images, the tool optionally supports the following:
 
 * Cryptographic signing of the boot chain (kernel, initial RAM disk, kernel command line) for Secure Boot, ensuring integrity and authenticity.
@@ -14,7 +15,9 @@ To generate secure images, the tool optionally supports the following:
 * Generate a Software Bill of Materials (SBOM) for each image, providing transparency for its components in SPDX format which can be used with tools like `gradle` and `Maven`
 
 ## 3. Support for Modern Boot Mechanisms
+
 The tool simplifies the adoption of Unified Kernel Image (UKI), a modern boot mechanism, potentially improving edge node security by supporting secure boot.
 
 ## 4. Partition Customization
+
 The OS Image Composer tool allows you to customize the partition layout, including optionally encrypting root partitions, customizing partition sizes, and adding partitions for security.

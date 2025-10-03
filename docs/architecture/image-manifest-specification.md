@@ -15,6 +15,7 @@ Here are the key aspects of the A/B update manifest. This information is used pr
 **Update metadata:** The manifest contains metadata about the update, including the update's version number, type (full or delta), and any necessary conditions for the update to apply.
 
 ## Image Manifest Format
+
 The following is an image manifest's minimal format that the OS Image Composer tool can output along with the system image it creates:
 
 ```text

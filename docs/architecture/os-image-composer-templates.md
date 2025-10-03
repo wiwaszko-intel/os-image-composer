@@ -2,24 +2,20 @@
 
 Templates in the OS Image Composer tool are YAML files that deliver a straightforward way to customize, standardize, and reuse image configurations. This document explains the template system and how to use it to streamline your image-creation workflow.
 
-## Contents
+## Table of Contents
 
-- [Understanding and Using Templates in OS Image Composer](#understanding-and-using-templates-in-os-image-composer)
-  - [Contents](#contents)
-  - [What Are Templates and How Do They Work?](#what-are-templates-and-how-do-they-work)
-    - [Template Structure](#template-structure)
-    - [Variable Substitution](#variable-substitution)
-  - [Using Templates to Build Images](#using-templates-to-build-images)
-  - [Template Storage](#template-storage)
-  - [Template Variables](#template-variables)
-  - [Best Practices](#best-practices)
-    - [Template Organization](#template-organization)
-    - [Template Design](#template-design)
-    - [Template Sharing](#template-sharing)
-  - [Conclusion](#conclusion)
-  - [Related Documentation](#related-documentation)
-
-
+- [What Are Templates and How Do They Work?](#what-are-templates-and-how-do-they-work)
+  - [Template Structure](#template-structure)
+  - [Variable Substitution](#variable-substitution)
+- [Using Templates to Build Images](#using-templates-to-build-images)
+- [Template Storage](#template-storage)
+- [Template Variables](#template-variables)
+- [Best Practices](#best-practices)
+  - [Template Organization](#template-organization)
+  - [Template Design](#template-design)
+  - [Template Sharing](#template-sharing)
+- [Conclusion](#conclusion)
+- [Related Documentation](#related-documentation)
 
 ## What Are Templates and How Do They Work?
 
@@ -93,12 +89,16 @@ systemConfig:
     cmdline: "console=ttyS0,115200 console=tty0 loglevel=7"
 ```
 
-To learn about patterns that work well as templates, see [Common Build Patterns](./os-image-composer-build-process.md#common-build-patterns).
+To learn about patterns that work well as templates, see
+[Common Build Patterns](./os-image-composer-build-process.md#common-build-patterns).
 
 ### Variable Substitution
 
 Templates support simple variable substitution using the `${variable_name}`
-syntax. When building an image from a template, you can provide values for these variables. See the [Build Specification File](./os-image-composer-cli-specification.md#build-specification-file) in the [command-line reference](./os-image-composer-cli-specification.md) for the complete structure of build specifications.
+syntax. When building an image from a template, you can provide values for these variables. See the
+[Build Specification File](./os-image-composer-cli-specification.md#build-specification-file) in the
+[command-line reference](./os-image-composer-cli-specification.md)
+for the complete structure of build specifications.
 
 ## Using Templates to Build Images
 
@@ -121,9 +121,11 @@ Templates in the OS Image Composer tool are stored in two main locations:
 
 ## Template Variables
 
-To find out how variables affect each build stage, see [Build Stages in Detail](./os-image-composer-build-process.md#build-stages-in-detail).
+To find out how variables affect each build stage, see
+[Build Stages in Detail](./os-image-composer-build-process.md#build-stages-in-detail).
 
-For details on customizations that you can apply, see the [Configuration Stage](./os-image-composer-build-process.md#4-configuration-stage) of the build process.
+For details on customizations that you can apply, see the
+[Configuration Stage](./os-image-composer-build-process.md#4-configuration-stage) of the build process.
 
 ## Best Practices
 
@@ -137,7 +139,7 @@ be reused.
 ### Template Design
 
 1. **Parameterize wisely**: Make variables out of settings that are likely to
-change.
+   change.
 2. **Provide defaults**: Always include sensible default values for variables.
 3. **Minimize complexity**: Keep templates straightforward and focused.
 
@@ -147,8 +149,8 @@ change.
 2. **Documentation**: Maintain a simple catalog of your templates.
 3. **Standardization**: Use templates to enforce your standards.
 
-To understand the role templates play in improving the efficiency of builds, see [Build Performance Optimization](./os-image-composer-build-process.md#build-performance-optimization).
-
+To understand the role templates play in improving the efficiency of builds, see
+[Build Performance Optimization](./os-image-composer-build-process.md#build-performance-optimization).
 
 ## Conclusion
 

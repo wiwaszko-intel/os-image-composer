@@ -3,7 +3,9 @@
 This document describes the general dependencies for the image creation tools and the steps to install them.
 
 ---
+
 ## ukify
+
 1. Install all the required dependencies for `ukify`:
 
 ```bash
@@ -44,6 +46,7 @@ You should see the usage instructions for `ukify`.
 ---
 
 ## mmdebstrap
+
 1. Download the mmdebstrap package:
 
 ```bash
