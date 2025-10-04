@@ -159,19 +159,56 @@ func extractRepoBase(rawURL string) (string, error) {
 		return "", err
 	}
 
-	// Split path by "/pool/" (debian) or "/Packages/" (rpm)
-	parts := strings.SplitN(u.Path, "/pool/", 2)
-	if len(parts) < 2 {
-		parts = strings.SplitN(u.Path, "/Packages/", 2)
-		if len(parts) < 2 {
-			log.Errorf("URL does not contain /pool/ or /Packages/: %s", rawURL)
-			return "", fmt.Errorf("URL does not contain /pool/ or /Packages/: %s", rawURL)
+	path := u.Path
+
+	// For Debian repositories - split by "/pool/"
+	if strings.Contains(path, "/pool/") {
+		parts := strings.SplitN(path, "/pool/", 2)
+		base := fmt.Sprintf("%s://%s%s/pool/", u.Scheme, u.Host, parts[0])
+		return base, nil
+	}
+
+	// For RPM repositories - split by "/Packages/"
+	if strings.Contains(path, "/Packages/") {
+		parts := strings.SplitN(path, "/Packages/", 2)
+		base := fmt.Sprintf("%s://%s%s/Packages/", u.Scheme, u.Host, parts[0])
+		return base, nil
+	}
+
+	// For RPM repositories with RPMS structure - find the directory containing the RPM file
+	if strings.HasSuffix(path, ".rpm") {
+		// Remove the filename to get the directory
+		lastSlash := strings.LastIndex(path, "/")
+		if lastSlash > 0 {
+			dirPath := path[:lastSlash+1] // Keep the trailing slash
+			base := fmt.Sprintf("%s://%s%s", u.Scheme, u.Host, dirPath)
+			return base, nil
 		}
 	}
 
-	// Rebuild base URL: scheme + host + prefix before /pool/
-	base := fmt.Sprintf("%s://%s%s/", u.Scheme, u.Host, parts[0])
-	return base, nil
+	// For DEB repositories with .deb files
+	if strings.HasSuffix(path, ".deb") {
+		// Remove the filename to get the directory
+		lastSlash := strings.LastIndex(path, "/")
+		if lastSlash > 0 {
+			dirPath := path[:lastSlash+1] // Keep the trailing slash
+			base := fmt.Sprintf("%s://%s%s", u.Scheme, u.Host, dirPath)
+			return base, nil
+		}
+	}
+
+	// Fallback: if no specific pattern found, try to extract directory from any file
+	if strings.Contains(path, ".") { // Likely a file with extension
+		lastSlash := strings.LastIndex(path, "/")
+		if lastSlash > 0 {
+			dirPath := path[:lastSlash+1]
+			base := fmt.Sprintf("%s://%s%s", u.Scheme, u.Host, dirPath)
+			return base, nil
+		}
+	}
+
+	log.Errorf("Unable to extract repo base from URL: %s", rawURL)
+	return "", fmt.Errorf("unable to extract repo base from URL: %s", rawURL)
 }
 
 func extractVersionRequirement(reqVers []string, depName string) (op string, ver string, found bool) {

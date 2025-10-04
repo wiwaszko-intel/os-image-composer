@@ -624,6 +624,8 @@ func ResolveDependencies02(requested []ospackage.PackageInfo, all []ospackage.Pa
 
 	neededSet := make(map[string]struct{})
 	queue := make([]ospackage.PackageInfo, 0, len(requested))
+
+	// Initialize queue with requested packages
 	for _, pi := range requested {
 		if pi.Version != "" {
 			key := fmt.Sprintf("%s=%s", pi.Name, pi.Version)
@@ -637,8 +639,6 @@ func ResolveDependencies02(requested []ospackage.PackageInfo, all []ospackage.Pa
 
 	result := make([]ospackage.PackageInfo, 0)
 
-	//testing: start
-
 	for len(queue) > 0 {
 		cur := queue[0]
 		queue = queue[1:]
@@ -649,27 +649,22 @@ func ResolveDependencies02(requested []ospackage.PackageInfo, all []ospackage.Pa
 		neededSet[cur.Name] = struct{}{}
 		result = append(result, cur)
 
-		// Traverse dependencies
+		// Process dependencies
 		for _, dep := range cur.Requires {
-
-			// depName := cleanDependencyName(dep)
-			depName := dep
-			if depName == "" || neededSet[depName] != struct{}{} {
+			// Use proper dependency name cleaning
+			depName := extractBaseRequirement(dep)
+			if depName == "" {
 				continue
 			}
-			if _, seen := neededSet[depName]; seen {
 
-				// Check if the new package can use the existing package. If it cannot, then error out; otherwise, continue.
-				// get the package from current queue based on name
-				existing, err := findAllCandidates(cur, depName, queue)
-				if err != nil {
-					return nil, fmt.Errorf("failed to find candidates during checking existing package for dependency %q of package %q: %v", depName, cur.Name, err)
-				}
-				if len(existing) > 0 {
-					// check if the existing package can satisfy the version requirement
+			if _, seen := neededSet[depName]; seen {
+				// ENHANCEMENT: Check version compatibility for already-resolved dependencies
+				existing, err := findAllCandidates(cur, depName, result)
+				if err == nil && len(existing) > 0 {
+					// Validate that existing package satisfies current requirement
 					_, err := resolveMultiCandidates(cur, existing)
 					if err != nil {
-						// get require version
+						// Find the specific version constraint from RequiresVer
 						var requiredVer string
 						for _, req := range cur.RequiresVer {
 							if strings.Contains(req, depName) {
@@ -677,34 +672,29 @@ func ResolveDependencies02(requested []ospackage.PackageInfo, all []ospackage.Pa
 								break
 							}
 						}
-						return nil, fmt.Errorf("conflicting package dependencies: %s_%s requires %s, but %s_%s is to be installed", cur.Name, cur.Version, requiredVer, existing[0].Name, existing[0].Version)
+						return nil, fmt.Errorf("conflicting package dependencies: %s_%s requires %s, but %s_%s is already selected",
+							cur.Name, cur.Version, requiredVer, existing[0].Name, existing[0].Version)
 					}
 				}
 				continue
 			}
 
+			// Find candidates for this dependency
 			candidates, err := findAllCandidates(cur, depName, all)
 			if err != nil {
 				return nil, fmt.Errorf("failed to find candidates for dependency %q of package %q: %v", depName, cur.Name, err)
 			}
 
 			if len(candidates) >= 1 {
-				// Pick the candidate using the resolver and add it to the queue
 				chosenCandidate, err := resolveMultiCandidates(cur, candidates)
 				if err != nil {
-					// gotMissingPkg = true
-					// AddParentMissingChildPair(cur, depName+"(missing)", &parentChildPairs)
 					log.Errorf("failed to resolve multiple candidates for dependency %q of package %q: %v", depName, cur.Name, err)
 					return nil, fmt.Errorf("failed to resolve multiple candidates for dependency %q of package %q: %v", depName, cur.Name, err)
 				}
 				queue = append(queue, chosenCandidate)
-				// AddParentChildPair(cur, chosenCandidate, &parentChildPairs)
-				continue
 			} else {
-				log.Errorf("no candidates found for dependency %q of package %q", depName, cur.Name)
-				// gotMissingPkg = true
-				// AddParentMissingChildPair(cur, depName+"(missing)", &parentChildPairs)
-				return nil, fmt.Errorf("no candidates found for dependency %q of package %q", depName, cur.Name)
+				// FAIL FAST instead of just warning
+				return nil, fmt.Errorf("no candidates found for required dependency %q of package %q", depName, cur.Name)
 			}
 		}
 	}
@@ -714,20 +704,8 @@ func ResolveDependencies02(requested []ospackage.PackageInfo, all []ospackage.Pa
 		return result[i].Name < result[j].Name
 	})
 
-	//testing: end
-
-	// Open the file once before the loop for efficiency
-	// f, err := os.OpenFile("yockgen-azl-requested.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	// if err == nil {
-	// 	defer f.Close()
-	// 	for _, pi := range result {
-	// 		fmt.Fprintln(f, pi.Name, pi.RequiresVer)
-	// 	}
-	// }
-
 	log.Infof("Successfully resolved %d packages from %d requested packages", len(result), len(requested))
 	return result, nil
-	// return nil, fmt.Errorf("yockgen: not implemented")
 }
 
 func findAllCandidates(parent ospackage.PackageInfo, depName string, all []ospackage.PackageInfo) ([]ospackage.PackageInfo, error) {
