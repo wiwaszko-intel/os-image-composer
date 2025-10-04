@@ -232,6 +232,12 @@ func createTempGPGKeyFiles(gpgKeyURLs []string) (keyPaths []string, cleanup func
 
 	// Download and create temp files for each GPG key
 	for i, gpgKeyURL := range gpgKeyURLs {
+
+		if gpgKeyURL == "<PUBLIC_KEY_URL>" || gpgKeyURL == "" {
+			log.Warnf("GPG key URL %d is empty, skipping", i+1)
+			continue
+		}
+
 		// Check if the GPG key URL is a binary file (ends with .gpg or .bin)
 		isBinary := strings.HasSuffix(strings.ToLower(gpgKeyURL), ".gpg") || strings.HasSuffix(strings.ToLower(gpgKeyURL), ".bin")
 
