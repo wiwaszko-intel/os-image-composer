@@ -516,3 +516,21 @@ func extractBasePackageName(fullName string) string {
 	// If no version-like part found, return the whole name
 	return name
 }
+
+// extractBaseRequirement takes a potentially complex requirement string
+// and returns only the base package/capability name.
+func extractBaseName(req string) string {
+	if strings.HasPrefix(req, "(") && strings.Contains(req, " ") {
+		trimmed := strings.TrimPrefix(req, "(")
+		parts := strings.Fields(trimmed)
+		if len(parts) > 0 {
+			req = parts[0]
+		}
+	}
+	finalParts := strings.Fields(req)
+	if len(finalParts) == 0 {
+		return ""
+	}
+	base := finalParts[0]
+	return base
+}

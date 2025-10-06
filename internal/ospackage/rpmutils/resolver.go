@@ -652,7 +652,8 @@ func ResolveDependencies02(requested []ospackage.PackageInfo, all []ospackage.Pa
 		// Process dependencies
 		for _, dep := range cur.Requires {
 			// Use proper dependency name cleaning
-			depName := extractBaseRequirement(dep)
+			// depName := extractBaseRequirement(dep)
+			depName := extractBaseName(dep)
 			if depName == "" {
 				continue
 			}
@@ -746,24 +747,34 @@ func findAllCandidates(parent ospackage.PackageInfo, depName string, all []ospac
 	}
 
 	// yockgen Instead of matching the whole string, check if depName has a prefix "curl-libs-8."
-	// if strings.HasPrefix(depName, "curl") {
+	// if strings.HasPrefix(depName, "libpopt.so.0") {
 
 	// 	f, err := os.OpenFile("/data/yockgen/debug.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	// 	if err == nil {
 	// 		defer f.Close()
-	// 		fmt.Fprintf(f, "yockgen1: dep=%s pkg=%s version=%s", depName, parent.Name, parent.Version)
+	// 		fmt.Fprintf(f, "\nyockgen1: dep=%s pkg=%s version=%s", depName, parent.Name, parent.Version)
 	// 		for _, itx := range parent.RequiresVer {
-	// 			if strings.HasPrefix(itx, "curl") {
+	// 			if strings.HasPrefix(itx, "libop5") {
 	// 				fmt.Fprintf(f, " depend=%s", itx)
 	// 			}
 	// 		}
 	// 		for _, itx := range candidates {
-	// 			fmt.Fprintf(f, " candidate=%s %s\n", itx.Name, itx.Version)
+	// 			fmt.Fprintf(f, "\ncandidate=%s %s\n", itx.Name, itx.Version)
 
 	// 		}
+	// 		// fmt.Fprintf(f, "\n")
 
-	// 		fmt.Fprintf(f, "\n\n")
+	// 		for _, pi := range all {
+	// 			for _, provided := range pi.Provides {
+	// 				if strings.HasPrefix(provided, "libpopt") {
+	// 					fmt.Fprintf(f, "\nyockgen provided: %s\n", provided)
+	// 				}
+	// 			}
+	// 		}
 	// 	}
+
+	// 	log.Debugf("yockgen:findAllCandidates: found %d candidates for dependency %q of package %q", len(candidates), depName, parent.Name)
+
 	// }
 
 	return candidates, nil
