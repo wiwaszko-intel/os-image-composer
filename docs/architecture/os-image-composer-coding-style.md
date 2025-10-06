@@ -1,26 +1,31 @@
 # Go Coding Style Guide for OS Image Composer
 
 ## Table of Contents
-1. [General Principles](#general-principles)
-2. [Code Formatting](#code-formatting)
-3. [Naming Conventions](#naming-conventions)
-4. [Error Handling](#error-handling)
-5. [Modularization](#modularization)
-6. [Package Design](#package-design)
-7. [Function Design](#function-design)
-8. [Testing Guidelines](#testing-guidelines)
-9. [Performance Best Practices](#performance-best-practices)
-10. [Security Considerations](#security-considerations)
 
-## General Principles
+1. [General Principles](#1-general-principles)
+2. [Code Formatting](#2-code-formatting)
+3. [Naming Conventions](#3-naming-conventions)
+4. [Error Handling](#4-error-handling)
+5. [Logging Guidelines](#5-logging-guidelines)
+6. [Modularization](#6-modularization)
+7. [Package Design](#7-package-design)
+8. [Function Design](#8-function-design)
+9. [Testing Guidelines](#9-testing-guidelines)
+10. [Performance Best Practices](#10-performance-best-practices)
+11. [Security Considerations](#11-security-considerations)
+12. [Project-Specific Guidelines](#12-project-specific-guidelines)
 
-### 1. Follow Go Idioms
+## 1. General Principles
+
+### 1.1 Follow Go Idioms
+
 - Write idiomatic Go code that follows community standards
 - Use `gofmt` to format all code consistently
 - Run `go vet` to catch common mistakes
 - Use `golint` for style suggestions
 
-### 2. Code Clarity Over Cleverness
+### 1.2 Code Clarity Over Cleverness
+
 ```go
 // Good: Clear and readable
 func isValidImageFormat(format string) bool {
@@ -39,17 +44,21 @@ func isValidImageFormat(format string) bool {
 }
 ```
 
-### 3. Consistency
+### 1.3 Consistency
+
 - Maintain consistent patterns across the codebase
 - Use the same error handling patterns
 - Follow established naming conventions
 
-## Code Formatting
+## 2. Code Formatting
 
-### 1. Use gofmt
-All code must be formatted with `gofmt`. Set up your editor to run it automatically on save.
+### 2.1 Use gofmt
 
-### 2. Line Length
+All code must be formatted with `gofmt`. Set up your editor to run it
+automatically on save.
+
+### 2.2 Line Length
+
 - Keep lines under 120 characters when possible
 - Break long function signatures and calls appropriately
 
@@ -73,7 +82,8 @@ result, err := builder.
     Build()
 ```
 
-### 3. Imports
+### 2.3 Imports
+
 - Group imports in three sections: standard library, third-party, local
 - Use blank lines between groups
 
@@ -91,9 +101,10 @@ import (
 )
 ```
 
-## Naming Conventions
+## 3. Naming Conventions
 
-### 1. Variables and Functions
+### 3.1 Variables and Functions
+
 - Use camelCase for variables and functions
 - Use descriptive names that explain purpose
 
@@ -109,7 +120,8 @@ var cache string
 func build() error
 ```
 
-### 2. Constants
+### 3.2 Constants
+
 - Use PascalCase for exported constants and camelCase for unexported constants
 - Group related constants
 
@@ -121,7 +133,8 @@ const (
 )
 ```
 
-### 3. Types and Interfaces
+### 3.3 Types and Interfaces
+
 - Use PascalCase for exported types
 - Interface names should end with 'er' when possible
 
@@ -137,7 +150,8 @@ type RpmInstaller interface {}
 type DebInstaller interface {}
 ```
 
-### 4. Package Names
+### 3.4 Package Names
+
 - Use lowercase, single word package names
 - Package names should be descriptive but concise
 
@@ -150,9 +164,10 @@ package config    // for configuration management
 package logger    // for logging utilities
 ```
 
-## Error Handling
+## 4. Error Handling
 
-### 1. Error Wrapping
+### 4.1 Error Wrapping
+
 Always wrap errors with context using `fmt.Errorf` with `%w` verb:
 
 ```go
@@ -173,7 +188,8 @@ func downloadPackage(url, destination string) error {
 }
 ```
 
-### 2. Named Return Parameters
+### 4.2 Named Return Parameters
+
 Use named returns for complex functions with multiple exit points:
 
 ```go
@@ -191,7 +207,8 @@ func createEfiFatImage(isoEfiPath, isoImagesPath string) (efiFatImgPath string, 
 }
 ```
 
-### 3. Resource Cleanup Patterns
+### 4.3 Resource Cleanup Patterns
+
 Use defer with named returns instead of "goto fail":
 
 ```go
@@ -230,7 +247,8 @@ func processImageWithCleanup(imagePath string) (err error) {
 }
 ```
 
-### 4. Error Types
+### 4.4 Error Types
+
 Define custom error types for specific error conditions:
 
 ```go
@@ -259,7 +277,8 @@ func validateImageConfig(config *ImageConfig) error {
 }
 ```
 
-### 5. Error Handling Patterns
+### 4.5 Error Handling Patterns
+
 ```go
 // Pattern 1: Early return on error
 func buildImage() error {
@@ -291,9 +310,10 @@ func processWithCleanup() (err error) {
 }
 ```
 
-### 6. Error and Logging Strategy by Component Type
+### 4.6 Error and Logging Strategy by Component Type
 
 #### Rule 1: Internal Utilities (`internal/utils`)
+
 Internal utilities should primarily return errors, not log them:
 
 ```go
@@ -326,6 +346,7 @@ func CopyFile(src, dst string) error {
 ```
 
 #### Rule 2: Business Logic Functions
+
 Functions that call libraries should both log and return errors:
 
 ```go
@@ -348,6 +369,7 @@ func (cb *ChrootBuilder) installPackages(packages []string) error {
 ```
 
 #### Rule 3: High-Level Orchestration Functions
+
 High-level functions should only return errors to avoid duplicate logging:
 
 ```go
@@ -370,9 +392,10 @@ func buildImageWorkflow(config *BuildConfig) error {
 }
 ```
 
-## Logging Guidelines
+## 5. Logging Guidelines
 
-### 1. Global Logger Declaration
+### 5.1 Global Logger Declaration
+
 Use package-level logger instead of declaring in each function:
 
 ```go
@@ -398,7 +421,7 @@ func (cb *ChrootBuilder) BuildChrootEnv() error {
 }
 ```
 
-### 2. Logging Levels
+### 5.2 Logging Levels
 
 ```go
 // Info: Major workflow steps
@@ -414,7 +437,8 @@ log.Debugf("Mounting %s at %s with options: %s", device, mountpoint, options)
 log.Warnf("Package %s already installed, skipping", packageName)
 ```
 
-### 3. Error Context in Messages
+### 5.3 Error Context in Messages
+
 Add business context to error logs, technical context to error returns:
 
 ```go
@@ -430,12 +454,13 @@ func (cb *ChrootBuilder) downloadPackage(url, destination string) error {
 }
 ```
 
-## Modularization
+## 6. Modularization
 
-### 1. Package Structure
+### 6.1 Package Structure
+
 Organize code into logical packages based on functionality:
 
-```
+```text
 internal/
 ├── chroot/           # Chroot environment building
 │   ├── chrootbuild/
@@ -482,7 +507,8 @@ internal/
     └── system/      # system command execution
 ```
 
-### 2. Struct-Based Component Design with Interface-Based Dependency Injection
+### 6.2 Struct-Based Component Design with Interface-Based Dependency Injection
+
 Prefer struct-based approach over global variables:
 
 #### Global State vs Struct-Based Comparison
@@ -534,17 +560,19 @@ var (
 )
 ```
 
-### 3. Function Wrapping Guidelines
+### 6.3 Function Wrapping Guidelines
 
 #### Rules for Wrapping Functions in Structs
 
 **Should be wrapped (methods):**
+
 - Functions that maintain state between calls
 - Functions that are part of the component workflow
 - Functions that use struct state/fields
 - Functions that need to be mocked for testing
 
 **Should NOT be wrapped (standalone functions):**
+
 - Functions that are stateless utilities
 - Functions that don't use struct state
 - Functions that could be used independently
@@ -571,11 +599,14 @@ func parseVersion(versionStr string) (*Version, error) {
 }
 ```
 
-### 4. Interface-Based Dependency Injection Design
+### 6.4 Interface-Based Dependency Injection Design
+
 Design interfaces that are focused and composable:
 
 #### Rule 1: Define Comprehensive Interfaces
-Create interfaces that define all operations a component needs, enabling complete mockability.
+
+Create interfaces that define all operations a component needs, enabling
+complete mockability.
 
 ```go
 // Good: Comprehensive interface defining all chroot operations
@@ -610,6 +641,7 @@ type ChrootEnvInterface interface {
 ```
 
 #### Rule 2: Constructor-Based Dependency Injection
+
 Inject dependencies through constructors, not as method parameters:
 
 ```go
@@ -640,6 +672,7 @@ func (ce *ChrootEnv) SomeOperation(builder chrootbuild.ChrootBuilderInterface) e
 ```
 
 #### Rule 3: Delegate to Injected Dependencies for Sub Components
+
 If the sub component's function will be used outside,
 use the struct to orchestrate calls to injected dependencies:
 
@@ -665,14 +698,18 @@ func (chrootEnv *ChrootEnv) GetTargetOsReleaseVersion() string {
 ```
 
 #### Rule 4: Interface Composition for Complex Dependencies
-When a component needs multiple interfaces, compose them rather than creating monolithic interfaces
+
+When a component needs multiple interfaces, compose them rather than creating
+monolithic interfaces
 
 #### Rule 5: Factory Pattern for Complex Construction
+
 Use factory functions when dependency creation is complex
 
-## Package Design
+## 7. Package Design
 
-### 1. Package Responsibility
+### 7.1 Package Responsibility
+
 Each package should have a single, well-defined responsibility:
 
 ```go
@@ -692,7 +729,8 @@ type Writer interface {
 }
 ```
 
-### 2. Public API Design
+### 7.2 Public API Design
+
 Keep public APIs minimal and stable:
 
 ```go
@@ -721,7 +759,8 @@ func (cb *chrootBuilder) BuildChrootEnv(targetOS, targetDist, targetArch string)
 }
 ```
 
-### 3. Configuration Patterns
+### 7.3 Configuration Patterns
+
 Use functional options for flexible configuration:
 
 ```go
@@ -752,9 +791,10 @@ builder, err := chroot.NewBuilder(
 )
 ```
 
-## Function Design
+## 8. Function Design
 
-### 1. Function Length
+### 8.1 Function Length
+
 Keep functions short and focused (typically under 50 lines):
 
 ```go
@@ -780,7 +820,8 @@ func validateTargetArch(targetArch string) error {
 }
 ```
 
-### 2. Parameter Lists
+### 8.2 Parameter Lists
+
 Limit the number of parameters (max 4-5), use structs for complex parameter sets:
 
 ```go
@@ -804,7 +845,8 @@ func buildImage(config *BuildConfig) error {
 }
 ```
 
-### 3. Return Values
+### 8.3 Return Values
+
 Be consistent with return patterns:
 
 ```go
@@ -822,9 +864,10 @@ func findPackage(name string) (path string, found bool, err error) {
 }
 ```
 
-## Testing Guidelines
+## 9. Testing Guidelines
 
-### 1. Test Structure
+### 9.1 Test Structure
+
 Follow the AAA pattern (Arrange, Act, Assert):
 
 ```go
@@ -871,7 +914,8 @@ func TestChrootBuilder_BuildChrootEnv(t *testing.T) {
 }
 ```
 
-### 2. Mocking
+### 9.2 Mocking
+
 Use interfaces for dependencies to enable easy mocking:
 
 ```go
@@ -890,7 +934,8 @@ func (m *mockPackageInstaller) InstallPackage(packagePath string) error {
 }
 ```
 
-### 3. Test Utilities
+### 9.3 Test Utilities
+
 Create test utilities for common setup:
 
 ```go
@@ -914,9 +959,10 @@ func CreateMockConfig(targetOS, targetDist, targetArch string) *BuildConfig {
 }
 ```
 
-## Performance Best Practices
+## 10. Performance Best Practices
 
-### 1. Memory Management
+### 10.1 Memory Management
+
 ```go
 // Good: Reuse slices when possible
 func processPackages(packages []string) error {
@@ -947,7 +993,8 @@ func buildPackageList(packages []string) string {
 }
 ```
 
-### 2. Concurrency
+### 10.2 Concurrency
+
 ```go
 // Good: Use worker pools for concurrent processing
 func downloadPackagesConcurrently(urls []string, workers int) error {
@@ -992,9 +1039,10 @@ func downloadPackagesConcurrently(urls []string, workers int) error {
 }
 ```
 
-## Security Considerations
+## 11. Security Considerations
 
-### 1. Input Validation
+### 11.1 Input Validation
+
 Always validate inputs, especially from external sources:
 
 ```go
@@ -1018,7 +1066,8 @@ func validateImageConfig(config *ImageConfig) error {
 }
 ```
 
-### 2. Command Execution
+### 11.2 Command Execution
+
 Be careful when executing shell commands:
 
 ```go
@@ -1044,7 +1093,8 @@ func createFileSystem(devicePath, fsType string) error {
 }
 ```
 
-### 3. File Permissions
+### 11.3 File Permissions
+
 Set appropriate file permissions:
 
 ```go
@@ -1064,9 +1114,10 @@ func writeSecretFile(path string, data []byte) error {
 }
 ```
 
-## Project-Specific Guidelines
+## 12. Project-Specific Guidelines
 
-### 1. Image Builder Patterns
+### 12.1 Image Builder Patterns
+
 ```go
 // Use builder pattern for complex image construction
 type ImageBuilder struct {
@@ -1090,7 +1141,8 @@ func (ib *ImageBuilder) Build() error {
 }
 ```
 
-### 2. Package Management
+### 12.2 Package Management
+
 ```go
 // Consistent interface for different package managers
 type PackageManager interface {
