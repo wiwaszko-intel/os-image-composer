@@ -322,6 +322,9 @@ func ParseRepositoryMetadata(baseURL, gzHref string) ([]ospackage.PackageInfo, e
 		case xml.EndElement:
 			switch elem.Name.Local {
 			case "package":
+				if curInfo.Arch == "src" {
+					continue
+				}
 				// finish this package
 				infos = append(infos, *curInfo)
 			}
