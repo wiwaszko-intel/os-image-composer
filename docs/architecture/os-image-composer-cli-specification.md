@@ -1,51 +1,62 @@
 # OS Image Composer CLI Specification
 
 ## Table of Contents
-- [OS Image Composer CLI Specification](#os-image-composer-cli-specification)
-  - [Table of Contents](#table-of-contents)
-  - [Overview](#overview)
-  - [CLI Flow](#cli-flow)
-  - [Usage](#usage)
-  - [Global Options](#global-options)
-  - [Commands](#commands)
-    - [Build Command](#build-command)
-    - [Validate Command](#validate-command)
-    - [Cache Command](#cache-command)
-    - [Template Command](#template-command)
-  - [Examples](#examples)
-    - [Building an Image](#building-an-image)
-    - [Managing Cache](#managing-cache)
-    - [Working with Templates](#working-with-templates)
-  - [Configuration Files](#configuration-files)
-    - [Global Configuration File](#global-configuration-file)
-    - [Image Template File](#image-template-file)
-  - [Exit Codes](#exit-codes)
-  - [Troubleshooting](#troubleshooting)
-    - [Common Issues](#common-issues)
-    - [Logging](#logging)
-  - [Related Documentation](#related-documentation)
+
+- [Overview](#overview)
+- [CLI Flow](#cli-flow)
+- [Usage](#usage)
+- [Global Options](#global-options)
+- [Commands](#commands)
+  - [Build Command](#build-command)
+  - [Validate Command](#validate-command)
+  - [Cache Command](#cache-command)
+  - [Template Command](#template-command)
+- [Examples](#examples)
+  - [Building an Image](#building-an-image)
+  - [Managing Cache](#managing-cache)
+  - [Working with Templates](#working-with-templates)
+- [Configuration Files](#configuration-files)
+  - [Global Configuration File](#global-configuration-file)
+  - [Image Template File](#image-template-file)
+- [Exit Codes](#exit-codes)
+- [Troubleshooting](#troubleshooting)
+  - [Common Issues](#common-issues)
+  - [Logging](#logging)
+- [Related Documentation](#related-documentation)
 
 ## Overview
 
-`os-image-composer` is a command-line tool for generating custom images for different operating systems, including [Azure Linux](https://github.com/microsoft/azurelinux), [Wind River eLxr](https://www.windriver.com/blog/Introducing-eLxr), and [Edge Microvisor Toolkit](https://github.com/open-edge-platform/edge-microvisor-toolkit). The tool provides a flexible approach to creating and configuring production-ready OS images with precise customization.
+`os-image-composer` is a command-line tool for generating custom images for
+different operating systems, including
+[Azure Linux](https://github.com/microsoft/azurelinux),
+[Wind River eLxr](https://www.windriver.com/blog/Introducing-eLxr), and
+[Edge Microvisor Toolkit](https://github.com/open-edge-platform/edge-microvisor-toolkit).
+The tool provides a flexible approach to creating and configuring
+production-ready OS images with precise customization.
 
-OS Image Composer uses a single CLI with subcommands to deliver a consistent user experience while maintaining flexibility. The tool's architecture is built around the following files:
+OS Image Composer uses a single CLI with subcommands to deliver a consistent
+user experience while maintaining flexibility. The tool's architecture is built
+around the following files:
 
-1. A global configuration file that defines system-wide settings like cache locations and provider configurations
+1. A global configuration file that defines system-wide settings like cache
+   locations and provider configurations
 2. Image template files in YAML format that define per-image build requirements
 
-The tool follows a staged build process to support package caching, image caching, and various customization options that speed up development cycles and ensure reproducible builds.
+The tool follows a staged build process to support package caching, image
+caching, and various customization options that speed up development cycles and
+ensure reproducible builds.
 
 ## CLI Flow
 
-The following diagram illustrates the high-level flow of the OS Image Composer CLI, the commands of which begin with `os-image-composer`:
+The following diagram illustrates the high-level flow of the OS Image Composer
+CLI, the commands of which begin with `os-image-composer`:
 
 ```mermaid
 flowchart TD
 
     Start([os-image-composer]) --> Config[Load Configuration]
     Config --> Commands{Commands}
-    
+
     Commands -->|build| Build[Build OS Image]
     Build --> ReadTemplate[Read YAML Template]
     ReadTemplate --> CheckCache{Image in Cache?}
@@ -53,35 +64,39 @@ flowchart TD
     CheckCache -->|No| BuildProcess[Run Build Pipeline]
     BuildProcess --> SaveImage[Save Output Image]
     UseCache --> SaveImage
-    
+
     Commands -->|validate| Validate[Validate Template File]
-    
+
     Commands -->|cache| Cache[Manage Caches]
     Cache --> CacheOps[List/Clean/Export/Import]
-    
+
     Commands -->|template| Template[Manage Templates]
-    
+
     Commands -->|provider| Provider[Manage OS Providers]
-    
+
     %% Styling
     classDef command fill:#b5e2fa,stroke:#0077b6,stroke-width:2px;
     classDef process fill:#f8edeb,stroke:#333,stroke-width:1px;
     classDef decision fill:#ffd166,stroke:#333,stroke-width:1px;
-    
+
     class Start command;
     class Build,Validate,Cache,Template,Provider command;
     class CheckCache decision;
     class ReadTemplate,BuildProcess,SaveImage,UseCache,CacheOps process;
-    
+
 ```
 
-The primary workflow is through the `build` command, which reads an image template file, checks if an image matching those specifications is already cached, and either uses the cached image or runs the build pipeline to create a new image.  
+The primary workflow is through the `build` command, which reads an image
+template file, checks if an image matching those specifications is already
+cached, and either uses the cached image or runs the build pipeline to create
+a new image.
 
 See also:
 
 - [How Caching Works](./os-image-composer-caching.md#how-they-work-together) for
-details on the caching process
-- [Build Stages](./os-image-composer-build-process.md#build-stages-in-detail) for the stages of the build pipeline
+  details on the caching process
+- [Build Stages](./os-image-composer-build-process.md#build-stages-in-detail)
+  for the stages of the build pipeline
 
 ## Usage
 
@@ -91,7 +106,8 @@ os-image-composer [global options] command [command options] [arguments...]
 
 ## Global Options
 
-The OS Image Composer command-line utility uses a layered configuration approach, with command-line options taking priority over the configuration file settings:
+The OS Image Composer command-line utility uses a layered configuration approach,
+with command-line options taking priority over the configuration file settings:
 
 | Option | Description |
 |--------|-------------|
@@ -108,7 +124,8 @@ The OS Image Composer command-line utility uses a layered configuration approach
 
 ### Build Command
 
-Build an OS image from an image template file. This is the primary command for creating custom OS images according to your requirements.
+Build an OS image from an image template file. This is the primary command for
+creating custom OS images according to your requirements.
 
 ```bash
 os-image-composer build [options] TEMPLATE_FILE
@@ -135,28 +152,34 @@ See also:
 
 ### Validate Command
 
-Validate an image template file without building it. This allows checking for errors in your template before committing to a full build process.
+Validate an image template file without building it. This allows checking for
+errors in your template before committing to a full build process.
 
 ```bash
 os-image-composer validate [options] TEMPLATE_FILE
 ```
 
-The `--merged` option validates the template after merging with defaults.  
+The `--merged` option validates the template after merging with defaults.
 
 See also:
 
-- [Validate Stage](./os-image-composer-build-process.md#1-validate-stage) for details on the validation process
+- [Validate Stage](./os-image-composer-build-process.md#1-validate-stage)
+  for details on the validation process
 
 ### Cache Command
 
-Manage the image and package caches to optimize build performance and storage usage.
+Manage the image and package caches to optimize build performance and
+storage usage.
 
 ```bash
 os-image-composer cache
 ```
+
 See also:
 
-- [Package Cache](./os-image-composer-caching.md#package-cache) and [Image Cache](./os-image-composer-caching.md#image-cache) for details on the caching mechanisms
+- [Package Cache](./os-image-composer-caching.md#package-cache) and
+  [Image Cache](./os-image-composer-caching.md#image-cache)
+  for details on the caching mechanisms
 - [Configuration Options](./os-image-composer-caching.md#configuration-options)
 
 ### Template Command
@@ -232,7 +255,11 @@ os-image-composer template create my-image-template.yml
 
 ### Global Configuration File
 
-The global configuration file (YAML format) defines system-wide settings that apply to all image builds. This centralized configuration simplifies management of common settings across multiple image builds. To override the following settings with command-line options, see [Global Options](#global-options).
+The global configuration file (YAML format) defines system-wide settings that
+apply to all image builds. This centralized configuration simplifies management
+of common settings across multiple image builds. To override the following
+settings with command-line options, see
+[Global Options](#global-options).
 
 ```yaml
 core:
@@ -245,7 +272,7 @@ core:
 
 storage:
   # Cache storage settings
-  package_cache: 
+  package_cache:
     enabled: true                            # Enable package caching
     max_size_gb: 10                          # Maximum cache size
     retention_days: 30                       # How long to keep cached packages
@@ -259,12 +286,12 @@ providers:
     repositories:
       - name: "base"
         url: "https://packages.microsoft.com/azurelinux/3.0/prod/base/"
-    
+
   elxr:
     repositories:
       - name: "main"
         url: "https://mirror.elxr.dev/elxr/dists/aria/main/"
-    
+
   emt:
     repositories:
       - name: "edge-base"
@@ -273,7 +300,9 @@ providers:
 
 ### Image Template File
 
-The image template file (YAML format) defines the requirements for an image. With this file, you can define exactly what goes into your custom OS image, including packages, configurations, and customizations.
+The image template file (YAML format) defines the requirements for an image.
+With this file, you can define exactly what goes into your custom OS image,
+including packages, configurations, and customizations.
 
 ```yaml
 image:
@@ -292,7 +321,7 @@ systemConfigs:
   # Array of system configurations
   - name: edge                               # Configuration name
     description: Edge device image with Microvisor support  # Human-readable description
-    
+
     # Package configuration
     packages:                                # Packages to install
       - openssh-server
@@ -300,7 +329,7 @@ systemConfigs:
       - vim
       - curl
       - wget
-    
+
     # Kernel configuration
     kernel:
       version: "6.12"                        # Kernel version to include
@@ -309,8 +338,10 @@ systemConfigs:
 
 See also:
 
-- [Common Build Patterns](./os-image-composer-build-process.md#common-build-patterns) for example image templates
-- [Template Structure](./os-image-composer-templates.md#template-structure) for how to use templates to generate build specifications
+- [Common Build Patterns](./os-image-composer-build-process.md#common-build-patterns)
+  for example image templates
+- [Template Structure](./os-image-composer-templates.md#template-structure)
+  for how to use templates to generate build specifications
 
 ## Exit Codes
 
@@ -330,18 +361,21 @@ automation:
 
 ### Common Issues
 
-1. **Disk Space**: Building images requires a significant amount of temporary disk space.
+1. **Disk Space**: Building images requires a significant amount of temporary
+   disk space.
 
    ```bash
    # Check free space
    df -h /var/tmp/os-image-composer
    ```
 
-1. **Cache Corruption**: If unexplained failures occur, try manually removing the content in the cache directory.
+1. **Cache Corruption**: If unexplained failures occur, try manually removing
+   the content in the cache directory.
 
 See also:
 
-- [Troubleshooting Build Issues](./os-image-composer-build-process.md#troubleshooting-build-issues) for stage-specific troubleshooting
+- [Troubleshooting Build Issues](./os-image-composer-build-process.md#troubleshooting-build-issues)
+  for stage-specific troubleshooting
 
 ### Logging
 
@@ -357,10 +391,14 @@ os-image-composer --log-level debug build my-image-template.yml 2>&1 | tee build
 
 See also:
 
-- [Build Log Analysis](./os-image-composer-build-process.md#build-log-analysis) for how to interpret log messages
+- [Build Log Analysis](./os-image-composer-build-process.md#build-log-analysis)
+  for how to interpret log messages
 
 ## Related Documentation
 
-- [Understanding the Build Process](./os-image-composer-build-process.md) describes the five-stage build pipeline.
-- [Understanding Caching](./os-image-composer-caching.md) explains the package and image caching systems.
-- [Understanding Templates in OS Image Composer](./os-image-composer-templates.md) demonstrates how to create and reuse templates.
+- [Understanding the Build Process](./os-image-composer-build-process.md)
+  describes the five-stage build pipeline.
+- [Understanding Caching](./os-image-composer-caching.md) explains the package
+  and image caching systems.
+- [Understanding Templates in OS Image Composer](./os-image-composer-templates.md)
+  demonstrates how to create and reuse templates.
