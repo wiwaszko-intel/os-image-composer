@@ -1146,49 +1146,6 @@ func copyBootloader(installRoot, src, dst string) error {
 	return nil
 }
 
-func createUser(installRoot string, template *config.ImageTemplate) error {
-	user := "user"
-	pwd := "user"
-
-	log.Infof("Creating user: %s", user)
-
-	// Create the user with useradd command
-	// -m creates home directory, -s sets shell
-	cmd := fmt.Sprintf("useradd -m -s /bin/bash %s", user)
-	output, err := shell.ExecCmdSilent(cmd, true, installRoot, nil)
-	if err != nil {
-		if strings.Contains(output, "already exists") {
-			log.Warnf("User %s already exists", user)
-		} else {
-			log.Errorf("Failed to create user %s: output: %s, err: %v", user, output, err)
-			return fmt.Errorf("failed to create user %s: output: %s, err: %w", user, output, err)
-		}
-	}
-
-	// Set password using passwd command with expect-like approach
-	passwdInput := fmt.Sprintf("%s\n%s\n", pwd, pwd)
-	passwdCmd := fmt.Sprintf("passwd %s", user)
-	if _, err := shell.ExecCmdWithInput(passwdInput, passwdCmd, true, installRoot, nil); err != nil {
-		log.Errorf("Failed to set password for user %s: %v", user, err)
-		return fmt.Errorf("failed to set password for user %s: %w", user, err)
-	}
-
-	// Add user to sudo group for sudo permissions
-	sudoCmd := fmt.Sprintf("usermod -aG sudo %s", user)
-	if _, err := shell.ExecCmd(sudoCmd, true, installRoot, nil); err != nil {
-		log.Errorf("Failed to add user %s to sudo group: %v", user, err)
-		return fmt.Errorf("failed to add user %s to sudo group: %w", user, err)
-	}
-
-	// Verify user creation
-	if err := verifyUserCreated(installRoot, user); err != nil {
-		return fmt.Errorf("user verification failed: %w", err)
-	}
-
-	log.Infof("User %s created successfully with sudo permissions", user)
-	return nil
-}
-
 // Verify that the user was created correctly
 func verifyUserCreated(installRoot, username string) error {
 
@@ -1210,33 +1167,144 @@ func verifyUserCreated(installRoot, username string) error {
 	}
 	log.Debugf("User in shadow: %s", strings.TrimSpace(output))
 
-	// Check if account is locked (password field starts with ! or *)
-	shadowFields := strings.Split(strings.TrimSpace(output), ":")
-	if len(shadowFields) >= 2 {
-		passwordField := shadowFields[1]
-		if strings.HasPrefix(passwordField, "!") || strings.HasPrefix(passwordField, "*") {
-			log.Errorf("User %s account is locked (password field: %s)", username, passwordField)
-			return fmt.Errorf("user %s account is locked (password field: %s)", username, passwordField)
-		}
-		if passwordField == "" {
-			log.Errorf("User %s has no password set", username)
-			return fmt.Errorf("user %s has no password set", username)
-		}
+	return nil
+}
+
+func createUser(installRoot string, template *config.ImageTemplate) error {
+	// Check if there are any users to create
+	if len(template.SystemConfig.Users) == 0 {
+		log.Debug("No users defined in template, skipping user creation")
+		return nil
 	}
 
-	// Check sudo group membership
-	groupCmd := fmt.Sprintf("groups %s", username)
-	output, err = shell.ExecCmd(groupCmd, true, installRoot, nil)
-	if err != nil {
-		log.Errorf("Failed to check groups for user %s: %v", username, err)
-		return fmt.Errorf("failed to check groups for user %s: %w", username, err)
-	}
-	log.Debugf("User groups: %s", strings.TrimSpace(output))
+	// Loop through each user in the template configuration
+	for _, user := range template.SystemConfig.Users {
+		log.Infof("Creating user: %s", user.Name)
 
-	if !strings.Contains(output, "sudo") {
-		log.Errorf("User %s is not in sudo group", username)
-		return fmt.Errorf("user %s is not in sudo group", username)
+		// Create the user with useradd command
+		// -m creates home directory, -s sets shell
+		cmd := fmt.Sprintf("useradd -m -s /bin/bash %s", user.Name)
+		output, err := shell.ExecCmdSilent(cmd, true, installRoot, nil)
+		if err != nil {
+			if strings.Contains(output, "already exists") {
+				log.Warnf("User %s already exists", user.Name)
+			} else {
+				log.Errorf("Failed to create user %s: output: %s, err: %v", user.Name, output, err)
+				return fmt.Errorf("failed to create user %s: output: %s, err: %w", user.Name, output, err)
+			}
+		}
+
+		// Set password if provided
+		if user.Password != "" {
+			if err := setUserPassword(installRoot, user); err != nil {
+				return fmt.Errorf("failed to set password for user %s: %w", user.Name, err)
+			}
+		}
+
+		// Add user to groups if specified, filtering out template placeholders
+		if len(user.Groups) > 0 {
+			for _, group := range user.Groups {
+				// Skip template placeholders and invalid group names
+				if strings.HasPrefix(group, "<") && strings.HasSuffix(group, ">") {
+					log.Debugf("Skipping template placeholder group: %s for user %s", group, user.Name)
+					continue
+				}
+				if strings.TrimSpace(group) == "" {
+					log.Debugf("Skipping empty group for user %s", user.Name)
+					continue
+				}
+
+				groupCmd := fmt.Sprintf("usermod -aG %s %s", group, user.Name)
+				if _, err := shell.ExecCmd(groupCmd, true, installRoot, nil); err != nil {
+					log.Errorf("Failed to add user %s to group %s: %v", user.Name, group, err)
+					return fmt.Errorf("failed to add user %s to group %s: %w", user.Name, group, err)
+				}
+				log.Debugf("Added user %s to group %s", user.Name, group)
+			}
+		}
+
+		// Verify user creation
+		if err := verifyUserCreated(installRoot, user.Name); err != nil {
+			return fmt.Errorf("user verification failed for %s: %w", user.Name, err)
+		}
+
+		log.Infof("User %s created successfully", user.Name)
 	}
 
 	return nil
+}
+
+// Helper function to set user password based on hash algorithm
+func setUserPassword(installRoot string, user config.UserConfig) error {
+	// Check if password is already hashed or needs hashing
+	if user.HashAlgo != "" {
+		log.Debugf("Setting password with hash algorithm %s for user %s", user.HashAlgo, user.Name)
+
+		// Check if password is already in hashed format (starts with $)
+		if strings.HasPrefix(user.Password, "$") {
+			// Password is already hashed, use usermod to set it directly
+			usermodCmd := fmt.Sprintf("usermod -p '%s' %s", user.Password, user.Name)
+			if _, err := shell.ExecCmd(usermodCmd, true, installRoot, nil); err != nil {
+				log.Errorf("Failed to set hashed password for user %s: %v", user.Name, err)
+				return fmt.Errorf("failed to set hashed password for user %s: %w", user.Name, err)
+			}
+		} else {
+			// Password is plaintext, need to hash it first
+			hashedPassword, err := hashPassword(user.Password, user.HashAlgo, installRoot)
+			if err != nil {
+				return fmt.Errorf("failed to hash password for user %s: %w", user.Name, err)
+			}
+
+			usermodCmd := fmt.Sprintf("usermod -p '%s' %s", hashedPassword, user.Name)
+			if _, err := shell.ExecCmd(usermodCmd, true, installRoot, nil); err != nil {
+				log.Errorf("Failed to set hashed password for user %s: %v", user.Name, err)
+				return fmt.Errorf("failed to set hashed password for user %s: %w", user.Name, err)
+			}
+		}
+	} else {
+		// No hash algorithm specified, use interactive passwd command (legacy behavior)
+		passwdInput := fmt.Sprintf("%s\n%s\n", user.Password, user.Password)
+		passwdCmd := fmt.Sprintf("passwd %s", user.Name)
+		if _, err := shell.ExecCmdWithInput(passwdInput, passwdCmd, true, installRoot, nil); err != nil {
+			log.Errorf("Failed to set password for user %s: %v", user.Name, err)
+			return fmt.Errorf("failed to set password for user %s: %w", user.Name, err)
+		}
+	}
+
+	return nil
+}
+
+// Helper function to hash password using specified algorithm
+func hashPassword(password, hashAlgo, installRoot string) (string, error) {
+	var cmd string
+
+	switch strings.ToLower(hashAlgo) {
+	case "sha512":
+		// Use openssl to generate SHA-512 hash
+		cmd = fmt.Sprintf("openssl passwd -6 '%s'", password)
+	case "sha256":
+		// Use openssl to generate SHA-256 hash
+		cmd = fmt.Sprintf("openssl passwd -5 '%s'", password)
+	case "md5":
+		// Use openssl to generate MD5 hash (not recommended for production)
+		cmd = fmt.Sprintf("openssl passwd -1 '%s'", password)
+	case "bcrypt":
+		// Use python3 to generate bcrypt hash
+		pythonScript := fmt.Sprintf("import bcrypt; print(bcrypt.hashpw(b'%s', bcrypt.gensalt()).decode())", password)
+		cmd = fmt.Sprintf("python3 -c \"%s\"", pythonScript)
+	default:
+		return "", fmt.Errorf("unsupported hash algorithm: %s", hashAlgo)
+	}
+
+	log.Debugf("Hashing password with algorithm %s", hashAlgo)
+	output, err := shell.ExecCmd(cmd, true, installRoot, nil)
+	if err != nil {
+		log.Errorf("Failed to hash password with algorithm %s: %v", hashAlgo, err)
+		return "", fmt.Errorf("failed to hash password with algorithm %s: %w", hashAlgo, err)
+	}
+
+	hashedPassword := strings.TrimSpace(output)
+	log.Debugf("Password hashed successfully with algorithm %s", hashAlgo)
+
+	return hashedPassword, nil
 }
