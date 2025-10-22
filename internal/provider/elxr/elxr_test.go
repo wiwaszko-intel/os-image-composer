@@ -638,3 +638,91 @@ func TestElxrArchitectureHandling(t *testing.T) {
 		})
 	}
 }
+
+// TestElxrBuildImageNilTemplate tests BuildImage with nil template
+func TestElxrBuildImageNilTemplate(t *testing.T) {
+	elxr := &eLxr{}
+
+	err := elxr.BuildImage(nil)
+	if err == nil {
+		t.Error("Expected error when template is nil")
+	}
+
+	expectedError := "template cannot be nil"
+	if err.Error() != expectedError {
+		t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
+	}
+}
+
+// TestElxrBuildImageUnsupportedType tests BuildImage with unsupported image type
+func TestElxrBuildImageUnsupportedType(t *testing.T) {
+	elxr := &eLxr{}
+
+	template := createTestImageTemplate()
+	template.Target.ImageType = "unsupported"
+
+	err := elxr.BuildImage(template)
+	if err == nil {
+		t.Error("Expected error for unsupported image type")
+	}
+
+	expectedError := "unsupported image type: unsupported"
+	if err.Error() != expectedError {
+		t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
+	}
+}
+
+// TestElxrBuildImageValidTypes tests BuildImage error handling for valid image types
+func TestElxrBuildImageValidTypes(t *testing.T) {
+	elxr := &eLxr{}
+
+	validTypes := []string{"raw", "img", "iso"}
+
+	for _, imageType := range validTypes {
+		t.Run(imageType, func(t *testing.T) {
+			template := createTestImageTemplate()
+			template.Target.ImageType = imageType
+
+			// These will fail due to missing chrootEnv, but we can verify
+			// that the code path is reached and the error is expected
+			err := elxr.BuildImage(template)
+			if err == nil {
+				t.Errorf("Expected error for image type %s (missing dependencies)", imageType)
+			} else {
+				t.Logf("Image type %s correctly failed with: %v", imageType, err)
+
+				// Verify the error is related to missing dependencies, not invalid type
+				if err.Error() == "unsupported image type: "+imageType {
+					t.Errorf("Image type %s should be supported but got unsupported error", imageType)
+				}
+			}
+		})
+	}
+}
+
+// TestElxrPostProcessErrorHandling tests PostProcess method signature and basic behavior
+func TestElxrPostProcessErrorHandling(t *testing.T) {
+	// Test that PostProcess method exists and has correct signature
+	// We verify that the method can be called and behaves predictably
+
+	elxr := &eLxr{}
+	template := createTestImageTemplate()
+	inputError := fmt.Errorf("build failed")
+
+	// Verify the method signature is correct by assigning it to a function variable
+	var postProcessFunc func(*config.ImageTemplate, error) error = elxr.PostProcess
+
+	t.Logf("PostProcess method has correct signature: %T", postProcessFunc)
+
+	// Test that PostProcess with nil chrootEnv will panic - catch and validate
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("PostProcess correctly panicked with nil chrootEnv: %v", r)
+		} else {
+			t.Error("Expected PostProcess to panic with nil chrootEnv")
+		}
+	}()
+
+	// This will panic due to nil chrootEnv, which we catch above
+	_ = elxr.PostProcess(template, inputError)
+}
