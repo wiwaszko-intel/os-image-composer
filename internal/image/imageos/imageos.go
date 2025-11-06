@@ -884,52 +884,54 @@ func getKernelVersion(installRoot string) (string, error) {
 func updateInitramfs(installRoot, kernelVersion string, template *config.ImageTemplate) error {
 	initrdPath := fmt.Sprintf("/boot/initramfs-%s.img", kernelVersion)
 
+	// Check if the initrdPath file exists in non-immutable case
+	// if !template.IsImmutabilityEnabled() {
+	// 	fullInitrdPath := filepath.Join(installRoot, initrdPath)
+	// 	if _, err := os.Stat(fullInitrdPath); err == nil {
+	// 		// initrd file already exists
+	// 		log.Debugf("Initramfs already exists, skipping update: %s", fullInitrdPath)
+	// 		return nil
+	// 	}
+	// }
+
+	// Build dracut command with all required options
+	var cmdParts []string
+	cmdParts = append(cmdParts, "dracut")
+	cmdParts = append(cmdParts, "--force")
+	cmdParts = append(cmdParts, "--no-hostonly")
+	cmdParts = append(cmdParts, "--verbose")
+
+	// Add systemd-veritysetup module if immutability is enabled
 	if template.IsImmutabilityEnabled() {
-		cmd := fmt.Sprintf(
-			"dracut --force --add systemd-veritysetup --no-hostonly --verbose --kver %s %s",
-			kernelVersion,
-			initrdPath,
-		)
-		_, err := shell.ExecCmd(cmd, true, installRoot, nil)
-		if err != nil {
-			log.Errorf("Failed to update initramfs with veritysetup: %v", err)
-			return fmt.Errorf("failed to update initramfs with veritysetup: %w", err)
-		}
-	} else {
-		// Check if the initrdPath file exists; if not, create it
-		fullInitrdPath := filepath.Join(installRoot, initrdPath)
-		if _, err := os.Stat(fullInitrdPath); err == nil {
-			// initrd file already exists
-			log.Debugf("Initramfs already exists, skipping update: %s", fullInitrdPath)
-			return nil
-		}
-		cmd := fmt.Sprintf(
-			"dracut -f %s %s",
-			initrdPath,
-			kernelVersion,
-		)
-		_, err := shell.ExecCmd(cmd, true, installRoot, nil)
-		if err != nil {
-			log.Errorf("Failed to update initramfs: %v", err)
-			return fmt.Errorf("failed to update initramfs: %w", err)
-		}
+		cmdParts = append(cmdParts, "--add", "systemd-veritysetup")
 	}
 
-	// Add USB drivers - this should be done regardless of immutability setting
-	kdrivers := "usbcore usb-common"
-	cmd := fmt.Sprintf(
-		"dracut --force --add-drivers '%s' --no-hostonly --verbose --kver %s %s",
-		kdrivers,
-		kernelVersion,
-		initrdPath,
-	)
+	// Always add USB drivers
+	cmdParts = append(cmdParts, "--add-drivers", "'usbcore usb-common'")
+
+	// Add kernel version and output path
+	cmdParts = append(cmdParts, "--kver", kernelVersion)
+	cmdParts = append(cmdParts, initrdPath)
+
+	// Execute single dracut command
+	cmd := strings.Join(cmdParts, " ")
 	_, err := shell.ExecCmd(cmd, true, installRoot, nil)
 	if err != nil {
-		log.Errorf("Failed to add USB drivers to initramfs: %v", err)
-		return fmt.Errorf("failed to add USB drivers to initramfs: %w", err)
+		if template.IsImmutabilityEnabled() {
+			log.Errorf("Failed to update initramfs with veritysetup and USB drivers: %v", err)
+			return fmt.Errorf("failed to update initramfs with veritysetup and USB drivers: %w", err)
+		} else {
+			log.Errorf("Failed to update initramfs with USB drivers: %v", err)
+			return fmt.Errorf("failed to update initramfs with USB drivers: %w", err)
+		}
 	}
 
-	log.Debugf("USB drivers added to initramfs successfully")
+	if template.IsImmutabilityEnabled() {
+		log.Debugf("Initramfs updated successfully with veritysetup and USB drivers")
+	} else {
+		log.Debugf("Initramfs updated successfully with USB drivers")
+	}
+
 	return nil
 }
 
