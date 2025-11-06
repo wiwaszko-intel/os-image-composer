@@ -107,6 +107,8 @@ func (isoMaker *IsoMaker) BuildIsoImage() (err error) {
 		// Don't fail the build if SBOM copy fails, just log warning
 	}
 
+	log.Infof("ISO image build completed successfully: %s", isoFilePath)
+
 	return nil
 }
 
@@ -221,6 +223,15 @@ func (isoMaker *IsoMaker) copyImagePkgsToIso(template *config.ImageTemplate, ins
 			log.Errorf("Failed to copy package file to iso cache-repo: %v", err)
 			return fmt.Errorf("failed to copy package file to iso cache-repo: %w", err)
 		}
+	}
+
+	pkgCacheChrootDir, err := isoMaker.ChrootEnv.GetChrootEnvPath(pkgCacheDestDir)
+	if err != nil {
+		return fmt.Errorf("failed to get chroot path for iso cache-repo: %w", err)
+	}
+
+	if err := isoMaker.ChrootEnv.UpdateChrootLocalRepoMetadata(pkgCacheChrootDir, template.Target.Arch, true); err != nil {
+		return fmt.Errorf("failed to update local cache repository metadata in iso: %w", err)
 	}
 
 	return nil
