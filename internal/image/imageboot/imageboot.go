@@ -161,6 +161,16 @@ func updateBootConfigTemplate(installRoot, rootDevID, bootUUID, bootPrefix, hash
 		return fmt.Errorf("failed to replace BootPrefix in boot configuration: %w", err)
 	}
 
+	if template.Target.OS == "edge-microvisor-toolkit" {
+
+		if err := file.ReplacePlaceholdersInFile("{{.RootPartition}}", "/dev/mapper/rootfs_verity", configFinalPath); err != nil {
+			log.Errorf("Failed to replace RootPartition in boot configuration: %v", err)
+			return fmt.Errorf("failed to replace RootPartition in boot configuration: %w", err)
+		}
+
+		log.Debug("yockgen edge-microvisor-toolkit")
+	}
+
 	if template.IsImmutabilityEnabled() {
 		if err := file.ReplacePlaceholdersInFile("{{.RootPartition}}", "/dev/mapper/root", configFinalPath); err != nil {
 			log.Errorf("Failed to replace RootPartition in boot configuration: %v", err)

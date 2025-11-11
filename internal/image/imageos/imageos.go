@@ -1092,15 +1092,15 @@ func buildUKI(installRoot, kernelPath, initrdPath, cmdlineFile, outputPath strin
 		return fmt.Errorf("failed to read cmdline file: %w", err)
 	}
 
-	bootUUID, err := getBootUUID(installRoot)
-	if err != nil {
-		log.Errorf("Failed to get boot UUID: %v", err)
-		// Handle error or use fallback
-		return fmt.Errorf("failed to get boot UUID: %w", err)
-	}
+	// bootUUID, err := getBootUUID(installRoot)
+	// if err != nil {
+	// 	log.Errorf("Failed to get boot UUID: %v", err)
+	// 	// Handle error or use fallback
+	// 	return fmt.Errorf("failed to get boot UUID: %w", err)
+	// }
 
 	cmdlineStr := string(data)
-	cmdlineStr = cmdlineStr + " boot_uuid=" + bootUUID
+	// cmdlineStr = cmdlineStr + " boot_uuid1=" + bootUUID
 	if template.IsImmutabilityEnabled() {
 		partData := extractRootHashPH(cmdlineStr)
 		err := prepareVeritySetup(partData, installRoot)
@@ -1365,5 +1365,6 @@ func getBootUUID(installRoot string) (string, error) {
 	bOutput, err := shell.ExecCmd(cmdUUID, true, installRoot, nil)
 	log.Debugf("yockgen blkid=%s", bOutput)
 
+	bootUUID = "dummyvalue"
 	return bootUUID, nil
 }

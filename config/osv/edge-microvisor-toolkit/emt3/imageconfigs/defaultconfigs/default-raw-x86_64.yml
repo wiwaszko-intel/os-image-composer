@@ -114,7 +114,7 @@ systemConfig:
     - setools-console
 
     # intel gpu base
-    - kernel-drivers-gpu
+    #- kernel-drivers-gpu
     - linux-firmware-i915
     - linux-firmware-ice
     - intel-npu-firmware
@@ -148,3 +148,5 @@ systemConfig:
     version: "6.12"
     cmdline: "console=ttyS0,115200 console=tty0 loglevel=7"
     uki: true
+    packages:
+      - kernel-drivers-gpu
