@@ -1,7 +1,8 @@
 # Edge Microvisor Toolkit 3.0 Repository Configuration
 name: "Edge Microvisor Toolkit 3.0"
 type: "rpm"  # Repository type: rpm or deb
-baseURL: "https://files-rs.edgeorchestration.intel.com/files-edge-orch/microvisor/rpm/3.0"
+#baseURL: "https://files-rs.edgeorchestration.intel.com/files-edge-orch/microvisor/rpm/3.0"
+baseURL: "https://files-rs.edgeorchestration.intel.com/files-edge-orch/microvisor/rpms/3.0/base"
 component: "emt3.0-base"  # Repository component/section identifier
 gpgCheck: true  # Enabled with Intel GPG key
 repoGPGCheck: true  # Enabled with Intel GPG key
