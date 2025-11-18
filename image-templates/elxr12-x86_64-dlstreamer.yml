@@ -10,10 +10,10 @@ target:
 
 # Sample list of additional package repositories; replace codename, url, and pkey values as needed
 packageRepositories:
-  - codename: "sed"
-    url: "https://eci.intel.com/sed-repos/jammy"
-    pkey: "https://eci.intel.com/sed-repos/gpg-keys/GPG-PUB-KEY-INTEL-SED.gpg"
-    component: "main"
+  # - codename: "sed"
+  #   url: "https://eci.intel.com/sed-repos/jammy"
+  #   pkey: "https://eci.intel.com/sed-repos/gpg-keys/GPG-PUB-KEY-INTEL-SED.gpg"
+  #   component: "main"
 
   - codename: "ubuntu22"
     url: "https://apt.repos.intel.com/openvino/2025"
@@ -34,9 +34,14 @@ packageRepositories:
   #   url: "https://apt.repos.intel.com/openvino/2025"
   #   pkey: "https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB" # Uncomment and replace in real config
 
-  # - codename: "ubuntu22"
-  #   url: "https://apt.repos.intel.com/edgeai/dlstreamer/ubuntu22"
-  #   pkey: "https://apt.repos.intel.com/edgeai/dlstreamer/GPG-PUB-KEY-INTEL-DLS.gpg"
+  - codename: "ubuntu22"
+    url: "https://apt.repos.intel.com/edgeai/dlstreamer/ubuntu22"
+    pkey: "https://apt.repos.intel.com/edgeai/dlstreamer/GPG-PUB-KEY-INTEL-DLS.gpg"
+
+  - codename: "jammy"
+    url: "https://repositories.intel.com/gpu/ubuntu"
+    pkey: "https://repositories.intel.com/gpu/intel-graphics.key"
+    component: "unified"
 
 disk:
   name: Minimal_Raw # 1:1 mapping to the systemConfigs name

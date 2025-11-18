@@ -16,6 +16,12 @@ import (
 	"github.com/open-edge-platform/os-image-composer/internal/utils/logger"
 )
 
+// VersionConstraint represents a version operator and version pair
+type VersionConstraint struct {
+	Op  string
+	Ver string
+}
+
 func GenerateDot(pkgs []ospackage.PackageInfo, file string) error {
 	return nil
 }
@@ -695,6 +701,11 @@ func findAllCandidates(depName string, all []ospackage.PackageInfo) []ospackage.
 		}
 	}
 
+	// Sort by version (highest version first)
+	sort.Slice(candidates, func(i, j int) bool {
+		return compareVersions(candidates[i].URL, candidates[j].URL) > 0
+	})
+
 	return candidates
 }
 
@@ -717,7 +728,10 @@ func extractRepoBase(rawURL string) (string, error) {
 	return base, nil
 }
 
-func extractVersionRequirement(reqVers []string, depName string) (op string, ver string, found bool) {
+func extractVersionRequirement(reqVers []string, depName string) ([]VersionConstraint, bool) {
+	var constraints []VersionConstraint
+	found := false
+
 	for _, reqVer := range reqVers {
 		reqVer = strings.TrimSpace(reqVer)
 
@@ -732,29 +746,39 @@ func extractVersionRequirement(reqVers []string, depName string) (op string, ver
 				continue // Skip to next alternative
 			}
 
-			// Found our dependency in this alternative, now extract version constraint
-			// Find version constraint inside parentheses
+			// Found our dependency in this alternative, now extract version constraints
+			// Find all version constraints inside parentheses (can be multiple separated by commas)
 			if idx := strings.Index(alt, "("); idx != -1 {
 				verConstraint := alt[idx+1:]
 				if idx2 := strings.Index(verConstraint, ")"); idx2 != -1 {
 					verConstraint = verConstraint[:idx2]
 				}
 
-				// Split into operator and version
-				parts := strings.Fields(verConstraint)
-				if len(parts) == 2 {
-					op := parts[0]
-					ver := parts[1]
-					return op, ver, true
+				// Handle multiple constraints separated by commas
+				constraintParts := strings.Split(verConstraint, ",")
+				for _, constraintPart := range constraintParts {
+					constraintPart = strings.TrimSpace(constraintPart)
+					// Split into operator and version
+					parts := strings.Fields(constraintPart)
+					if len(parts) == 2 {
+						constraint := VersionConstraint{
+							Op:  parts[0],
+							Ver: parts[1],
+						}
+						constraints = append(constraints, constraint)
+						found = true
+					}
 				}
 			}
 
-			// If we found the dependency but no version constraint, return found=false
-			return "", "", false
+			// If we found the dependency but no version constraint, still mark as found
+			if !found {
+				found = true
+			}
 		}
 	}
 
-	return "", "", false
+	return constraints, found
 }
 
 func resolveMultiCandidates(parentPkg ospackage.PackageInfo, candidates []ospackage.PackageInfo) (ospackage.PackageInfo, error) {
@@ -767,12 +791,45 @@ func resolveMultiCandidates(parentPkg ospackage.PackageInfo, candidates []ospack
 	//A: if version is specified
 	/////////////////////////////////////
 	// All candidates have the same .Name, so just use candidates[0].Name for version extraction
-	op := ""
-	ver := ""
+	var versionConstraints []VersionConstraint
 	hasVersionConstraint := false
 	if len(candidates) > 0 {
-		op, ver, hasVersionConstraint = extractVersionRequirement(parentPkg.RequiresVer, candidates[0].Name)
+		versionConstraints, hasVersionConstraint = extractVersionRequirement(parentPkg.RequiresVer, candidates[0].Name)
 	}
+
+	//yockgen: start
+	depNm := candidates[0].Name
+	//parentFilter := "libva-drm2" //"ca-certificates"     //"systemd-ukify"
+	depFilter := "python3.12-minimal" //"ca-certificates-shared" //"systemd"
+	// if strings.HasPrefix(parentPkg.Name, parentFilter) && depNm == depFilter {
+	if depNm == depFilter {
+		fmt.Printf("versionConstraints, hasVersionConstraint = extractVersionRequirement(%#v, %#v)\n", parentPkg.RequiresVer, candidates[0].Name)
+		fmt.Printf("\nyockgen99: parent=%s", parentPkg.Name)
+		for _, req := range parentPkg.RequiresVer {
+			if strings.HasPrefix(req, depNm) {
+				fmt.Printf(" required=%s\n", req)
+			}
+		}
+		if !hasVersionConstraint {
+			fmt.Printf("yockgen99: no version specified for %s\n\n", candidates[0].Name)
+			//display all candidates
+			for _, itx := range candidates {
+				fmt.Printf("yockgen99: candidate=%s %s\n", itx.Name, itx.Version)
+			}
+		} else {
+
+			//display all candidates
+			for _, itx := range candidates {
+				fmt.Printf("yockgen99: candidate=%s %s\n", itx.Name, itx.Version)
+			}
+			fmt.Printf("yockgen99: version constraints for %s are: ", candidates[0].Name)
+			for _, vc := range versionConstraints {
+				fmt.Printf("%s%s ", vc.Op, vc.Ver)
+			}
+			fmt.Printf("\n\n")
+		}
+	}
+	//yockgen: end
 
 	if hasVersionConstraint {
 		// First pass: look for candidates from the same repo that meet version constraint
@@ -785,27 +842,36 @@ func resolveMultiCandidates(parentPkg ospackage.PackageInfo, candidates []ospack
 				continue
 			}
 
-			// Check if version constraint is satisfied
-			cmp, err := compareDebianVersions(candidate.Version, ver)
-			if err != nil {
-				continue
+			// Check if all version constraints are satisfied
+			allConstraintsSatisfied := true
+			for _, constraint := range versionConstraints {
+				cmp, err := compareDebianVersions(candidate.Version, constraint.Ver)
+				if err != nil {
+					allConstraintsSatisfied = false
+					break
+				}
+
+				versionMatches := false
+				switch constraint.Op {
+				case "=":
+					versionMatches = (cmp == 0)
+				case "<<", "<":
+					versionMatches = (cmp < 0)
+				case "<=":
+					versionMatches = (cmp <= 0)
+				case ">>", ">":
+					versionMatches = (cmp > 0)
+				case ">=":
+					versionMatches = (cmp >= 0)
+				}
+
+				if !versionMatches {
+					allConstraintsSatisfied = false
+					break
+				}
 			}
 
-			versionMatches := false
-			switch op {
-			case "=":
-				versionMatches = (cmp == 0)
-			case "<<", "<":
-				versionMatches = (cmp < 0)
-			case "<=":
-				versionMatches = (cmp <= 0)
-			case ">>", ">":
-				versionMatches = (cmp > 0)
-			case ">=":
-				versionMatches = (cmp >= 0)
-			}
-
-			if versionMatches {
+			if allConstraintsSatisfied {
 				if candidateBase == parentBase {
 					sameRepoMatches = append(sameRepoMatches, candidate)
 				} else {
@@ -816,15 +882,30 @@ func resolveMultiCandidates(parentPkg ospackage.PackageInfo, candidates []ospack
 
 		// Priority 1: return first match from same repo
 		if len(sameRepoMatches) > 0 {
+			// if strings.HasPrefix(parentPkg.Name, parentFilter) && depNm == depFilter {
+			if depNm == depFilter {
+				fmt.Printf("yockgen99: choosen candidate same: %s %s\n\n", sameRepoMatches[0].Name, sameRepoMatches[0].Version)
+			}
 			return sameRepoMatches[0], nil
 		}
 
 		// Priority 2: return first match from other repos
 		if len(otherRepoMatches) > 0 {
+			// if strings.HasPrefix(parentPkg.Name, parentFilter) && depNm == depFilter {
+			if depNm == depFilter {
+				fmt.Printf("yockgen99: choosen candidate other: %s %s\n\n", otherRepoMatches[0].Name, otherRepoMatches[0].Version)
+			}
 			return otherRepoMatches[0], nil
 		}
 
-		return ospackage.PackageInfo{}, fmt.Errorf("no candidates satisfy version constraint = %s%s", op, ver)
+		constraintStr := ""
+		for i, vc := range versionConstraints {
+			if i > 0 {
+				constraintStr += ", "
+			}
+			constraintStr += vc.Op + vc.Ver
+		}
+		return ospackage.PackageInfo{}, fmt.Errorf("no candidates satisfy version constraints: %s", constraintStr)
 	}
 
 	/////////////////////////////////////
@@ -838,6 +919,9 @@ func resolveMultiCandidates(parentPkg ospackage.PackageInfo, candidates []ospack
 
 	// If only one candidate, return it
 	if len(candidates) == 1 {
+		if depNm == depFilter {
+			fmt.Printf("yockgen99: choosen candidate only candidate: %s %s\n\n", candidates[0].Name, candidates[0].Version)
+		}
 		return candidates[0], nil
 	}
 
@@ -856,6 +940,9 @@ func resolveMultiCandidates(parentPkg ospackage.PackageInfo, candidates []ospack
 	// If we found candidates with the same base URL, return the one with the latest version
 	if len(sameBaseCandidates) > 0 {
 		if len(sameBaseCandidates) == 1 {
+			if depNm == depFilter {
+				fmt.Printf("yockgen99: choosen candidate same no conts: %s %s\n\n", sameBaseCandidates[0].Name, sameBaseCandidates[0].Version)
+			}
 			return sameBaseCandidates[0], nil
 		}
 
@@ -868,7 +955,15 @@ func resolveMultiCandidates(parentPkg ospackage.PackageInfo, candidates []ospack
 			}
 		}
 
+		if depNm == depFilter {
+			fmt.Printf("yockgen99: choosen candidate latest: %s %s\n\n", latest.Name, latest.Version)
+		}
+
 		return latest, nil
+	}
+
+	if depNm == depFilter {
+		fmt.Printf("yockgen99: choosen candidate first pick: %s %s\n\n", candidates[0].Name, candidates[0].Version)
 	}
 
 	// Rule 2: If no candidate has the same repo, return the first candidate in other repos
