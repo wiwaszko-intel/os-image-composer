@@ -10,11 +10,6 @@ target:
 
 # Sample list of additional package repositories; replace codename, url, and pkey values as needed
 packageRepositories:
-  # - codename: "sed"
-  #   url: "https://eci.intel.com/sed-repos/jammy"
-  #   pkey: "https://eci.intel.com/sed-repos/gpg-keys/GPG-PUB-KEY-INTEL-SED.gpg"
-  #   component: "main"
-
   - codename: "ubuntu24"
     url: "https://apt.repos.intel.com/openvino/2025"
     pkey: "https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB"
@@ -24,16 +19,6 @@ packageRepositories:
     url: "https://download.01.org/intel-linux-overlay/ubuntu/"
     pkey: "https://download.01.org/intel-linux-overlay/ubuntu/E6FA98203588250569758E97D176E3162086EE4C.gpg"
     component: "kernels"
-
-  # ELXR base repository - using actual ELXR mirror configuration
-  # - codename: "aria"
-  #   url: "https://mirror.elxr.dev/elxr"
-  #   pkey: "https://mirror.elxr.dev/elxr/public.gpg"
-  #   component: "main"
-
-  # - codename: "ubuntu22"
-  #   url: "https://apt.repos.intel.com/openvino/2025"
-  #   pkey: "https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB" # Uncomment and replace in real config
 
   - codename: "ubuntu24"
     url: "https://apt.repos.intel.com/edgeai/dlstreamer/ubuntu24"

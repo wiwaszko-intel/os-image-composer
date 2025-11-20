@@ -10,11 +10,6 @@ target:
 
 # Sample list of additional package repositories; replace codename, url, and pkey values as needed
 packageRepositories:
-  # - codename: "sed"
-  #   url: "https://eci.intel.com/sed-repos/jammy"
-  #   pkey: "https://eci.intel.com/sed-repos/gpg-keys/GPG-PUB-KEY-INTEL-SED.gpg"
-  #   component: "main"
-
   - codename: "ubuntu22"
     url: "https://apt.repos.intel.com/openvino/2025"
     pkey: "https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB"
@@ -30,19 +25,10 @@ packageRepositories:
     pkey: "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x871920D1991BC93C"
     component: "main universe"
 
-  # - codename: "noble-security"
-  #   url: "http://security.ubuntu.com/ubuntu"
-  #   pkey: "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x871920D1991BC93C"
-  #   component: "main restricted universe multiverse"
-
   - codename: "noble"
     url: "https://download.01.org/intel-linux-overlay/ubuntu/"
     pkey: "https://download.01.org/intel-linux-overlay/ubuntu/E6FA98203588250569758E97D176E3162086EE4C.gpg"
     component: "kernels"
-
-  # - codename: "ubuntu22"
-  #   url: "https://apt.repos.intel.com/openvino/2025"
-  #   pkey: "https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB" # Uncomment and replace in real config
 
   - codename: "ubuntu22"
     url: "https://apt.repos.intel.com/edgeai/dlstreamer/ubuntu22"

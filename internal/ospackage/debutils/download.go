@@ -356,12 +356,6 @@ func MatchRequested(requests []string, all []ospackage.PackageInfo) ([]ospackage
 		}
 	}
 
-	for _, queuepkg := range out {
-		if queuepkg.Name == "gcc-12-base" {
-			log.Debugf("gcc-12-base in top package %s %s -> %s", queuepkg.Name, queuepkg.Version, filepath.Base(queuepkg.URL))
-		}
-	}
-
 	log.Infof("found %d packages in request of %d", len(out), len(requests))
 	if gotMissingPkg {
 		report, err := WriteArrayToFile(requestedPkgs, "Missing Requested Packages")
