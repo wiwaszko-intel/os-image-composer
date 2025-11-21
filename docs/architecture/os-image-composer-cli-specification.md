@@ -21,6 +21,7 @@
   - [Examples](#examples)
     - [Building an Image](#building-an-image)
     - [Managing Configuration](#managing-configuration)
+    - [Managing Cache](#managing-cache)
     - [Validating Templates](#validating-templates)
   - [Configuration Files](#configuration-files)
     - [Global Configuration File](#global-configuration-file)
@@ -113,6 +114,7 @@ with command-line options taking priority over the configuration file settings:
 |--------|-------------|
 | `--config FILE` | Global configuration file. This file contains system-wide settings that apply to all image builds. If not specified, the tool searches for configuration files in standard locations. |
 | `--log-level LEVEL` | Log level: debug, info, warn, error (overrides config). Use debug for troubleshooting build issues. |
+| `--log-file PATH` | Tee logs to a specific file path (overrides `logging.file` in the configuration). |
 | `--help, -h` | Show help for any command or subcommand. |
 | `--version` | Show `os-image-composer` version information. |
 

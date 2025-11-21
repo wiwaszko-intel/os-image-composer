@@ -336,6 +336,7 @@ Flags:
 - `--dotfile, -f`: Generate dependency graph as a dot file
 - `--config`: Path to the configuration file
 - `--log-level`: Log level (debug, info, warn, and error)
+- `--log-file`: Override the log file path defined in the configuration
 
 Example:
 

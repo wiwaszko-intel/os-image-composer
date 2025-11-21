@@ -14,6 +14,9 @@ func TestCreateRootCommand_Wiring(t *testing.T) {
 	if f := root.PersistentFlags().Lookup("log-level"); f == nil {
 		t.Fatalf("--log-level flag missing")
 	}
+	if f := root.PersistentFlags().Lookup("log-file"); f == nil {
+		t.Fatalf("--log-file flag missing")
+	}
 
 	// Expected subcommands
 	want := map[string]bool{

@@ -14,6 +14,7 @@ import (
 var (
 	configFile       string = "" // Path to config file
 	logLevel         string = "" // Empty means use config file value
+	logFilePath      string = "" // Optional log file override
 	actualConfigFile string = "" // Actual config file path found during init
 	loggerCleanup    func()
 )
@@ -49,6 +50,10 @@ func initConfig() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading configuration: %v\n", err)
 		os.Exit(1)
+	}
+
+	if logFilePath != "" {
+		globalConfig.Logging.File = logFilePath
 	}
 
 	// Set global config singleton
@@ -108,6 +113,8 @@ Use 'os-image-composer <command> --help' for more information about a command.`,
 		"Path to configuration file")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "",
 		"Log level (debug, info, warn, error)")
+	rootCmd.PersistentFlags().StringVar(&logFilePath, "log-file", "",
+		"Log file path to tee logs (overrides configuration file)")
 
 	// Add all subcommands
 	rootCmd.AddCommand(createBuildCommand())
