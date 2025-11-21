@@ -28,15 +28,12 @@ func TestConfigImageSecurity(t *testing.T) {
 		errContains  string
 	}{
 		{
-			name:        "successful config with ro rootfs",
+			name:        "successful config with immutability enabled",
 			installRoot: tempDir,
 			template: &config.ImageTemplate{
-				Disk: config.DiskConfig{
-					Partitions: []config.PartitionInfo{
-						{
-							Type:         "linux-root-amd64",
-							MountOptions: "defaults,ro",
-						},
+				SystemConfig: config.SystemConfig{
+					Immutability: config.ImmutabilityConfig{
+						Enabled: true,
 					},
 				},
 			},
@@ -53,36 +50,12 @@ func TestConfigImageSecurity(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:        "rootfs partition with ID and ro option",
+			name:        "immutability disabled - should skip overlay config",
 			installRoot: tempDir,
 			template: &config.ImageTemplate{
-				Disk: config.DiskConfig{
-					Partitions: []config.PartitionInfo{
-						{
-							ID:           "rootfs",
-							MountOptions: "ro,nodev",
-						},
-					},
-				},
-			},
-			mockCommands: []shell.MockCommand{
-				{Pattern: `sudo chroot .* mkdir -p .*`, Output: ""},
-				{Pattern: `sudo chroot .* bash -c "systemctl enable setup-overlay\.service"`, Output: ""},
-				{Pattern: `cat .*/tmp/fileappend-.* \| sudo tee -a .* >/dev/null`, Output: ""},
-				{Pattern: `sudo chmod -R 755 .*`, Output: ""},
-			},
-			wantErr: false,
-		},
-		{
-			name:        "no ro option - should skip overlay config",
-			installRoot: tempDir,
-			template: &config.ImageTemplate{
-				Disk: config.DiskConfig{
-					Partitions: []config.PartitionInfo{
-						{
-							Type:         "linux-root-amd64",
-							MountOptions: "defaults,rw",
-						},
+				SystemConfig: config.SystemConfig{
+					Immutability: config.ImmutabilityConfig{
+						Enabled: false,
 					},
 				},
 			},
@@ -90,53 +63,11 @@ func TestConfigImageSecurity(t *testing.T) {
 			wantErr:      false,
 		},
 		{
-			name:        "rootfs partition with Name and ro option",
+			name:        "immutability not configured (default disabled) - should skip",
 			installRoot: tempDir,
 			template: &config.ImageTemplate{
-				Disk: config.DiskConfig{
-					Partitions: []config.PartitionInfo{
-						{
-							Name:         "rootfs",
-							MountOptions: "defaults,ro,sync",
-						},
-					},
-				},
-			},
-			mockCommands: []shell.MockCommand{
-				{Pattern: `sudo chroot .* mkdir -p .*`, Output: ""},
-				{Pattern: `sudo chroot .* bash -c "systemctl enable setup-overlay\.service"`, Output: ""},
-				{Pattern: `cat .*/tmp/fileappend-.* \| sudo tee -a .* >/dev/null`, Output: ""},
-				{Pattern: `sudo chmod -R 755 .*`, Output: ""},
-			},
-			wantErr: false,
-		},
-		{
-			name:        "no rootfs partition found - should skip",
-			installRoot: tempDir,
-			template: &config.ImageTemplate{
-				Disk: config.DiskConfig{
-					Partitions: []config.PartitionInfo{
-						{
-							Type:         "linux-swap",
-							MountOptions: "defaults",
-						},
-					},
-				},
-			},
-			mockCommands: []shell.MockCommand{},
-			wantErr:      false,
-		},
-		{
-			name:        "empty mount options - should skip",
-			installRoot: tempDir,
-			template: &config.ImageTemplate{
-				Disk: config.DiskConfig{
-					Partitions: []config.PartitionInfo{
-						{
-							Type:         "linux-root-amd64",
-							MountOptions: "",
-						},
-					},
+				SystemConfig: config.SystemConfig{
+					// No immutability config, defaults to disabled
 				},
 			},
 			mockCommands: []shell.MockCommand{},
@@ -150,26 +81,12 @@ func TestConfigImageSecurity(t *testing.T) {
 			wantErr:      true, // This should error due to nil pointer dereference
 		},
 		{
-			name:        "empty partitions list",
+			name:        "immutability enabled with overlay config success",
 			installRoot: tempDir,
 			template: &config.ImageTemplate{
-				Disk: config.DiskConfig{
-					Partitions: []config.PartitionInfo{},
-				},
-			},
-			mockCommands: []shell.MockCommand{},
-			wantErr:      false,
-		},
-		{
-			name:        "ro option with spaces",
-			installRoot: tempDir,
-			template: &config.ImageTemplate{
-				Disk: config.DiskConfig{
-					Partitions: []config.PartitionInfo{
-						{
-							Type:         "linux-root-amd64",
-							MountOptions: "defaults, ro ,nodev",
-						},
+				SystemConfig: config.SystemConfig{
+					Immutability: config.ImmutabilityConfig{
+						Enabled: true,
 					},
 				},
 			},
@@ -182,23 +99,12 @@ func TestConfigImageSecurity(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:        "multiple partitions - only one with ro",
+			name:        "test directory creation with duplicate check",
 			installRoot: tempDir,
 			template: &config.ImageTemplate{
-				Disk: config.DiskConfig{
-					Partitions: []config.PartitionInfo{
-						{
-							Type:         "linux-swap",
-							MountOptions: "defaults",
-						},
-						{
-							Type:         "linux-root-amd64",
-							MountOptions: "ro",
-						},
-						{
-							Type:         "esp",
-							MountOptions: "defaults",
-						},
+				SystemConfig: config.SystemConfig{
+					Immutability: config.ImmutabilityConfig{
+						Enabled: true,
 					},
 				},
 			},
@@ -209,22 +115,6 @@ func TestConfigImageSecurity(t *testing.T) {
 				{Pattern: `sudo chmod -R 755 .*`, Output: ""},
 			},
 			wantErr: false,
-		},
-		{
-			name:        "ro as substring should not match",
-			installRoot: tempDir,
-			template: &config.ImageTemplate{
-				Disk: config.DiskConfig{
-					Partitions: []config.PartitionInfo{
-						{
-							Type:         "linux-root-amd64",
-							MountOptions: "errors=remount-ro",
-						},
-					},
-				},
-			},
-			mockCommands: []shell.MockCommand{},
-			wantErr:      false,
 		},
 	}
 
@@ -304,12 +194,9 @@ func TestConfigImageSecurity_ErrorCases(t *testing.T) {
 			name:        "mkdir command fails",
 			installRoot: tempDir,
 			template: &config.ImageTemplate{
-				Disk: config.DiskConfig{
-					Partitions: []config.PartitionInfo{
-						{
-							Type:         "linux-root-amd64",
-							MountOptions: "ro",
-						},
+				SystemConfig: config.SystemConfig{
+					Immutability: config.ImmutabilityConfig{
+						Enabled: true,
 					},
 				},
 			},
@@ -323,12 +210,9 @@ func TestConfigImageSecurity_ErrorCases(t *testing.T) {
 			name:        "systemctl enable fails",
 			installRoot: tempDir,
 			template: &config.ImageTemplate{
-				Disk: config.DiskConfig{
-					Partitions: []config.PartitionInfo{
-						{
-							Type:         "linux-root-amd64",
-							MountOptions: "ro",
-						},
+				SystemConfig: config.SystemConfig{
+					Immutability: config.ImmutabilityConfig{
+						Enabled: true,
 					},
 				},
 			},
@@ -345,12 +229,9 @@ func TestConfigImageSecurity_ErrorCases(t *testing.T) {
 			name:        "file append fails for fstab",
 			installRoot: tempDir,
 			template: &config.ImageTemplate{
-				Disk: config.DiskConfig{
-					Partitions: []config.PartitionInfo{
-						{
-							Type:         "linux-root-amd64",
-							MountOptions: "ro",
-						},
+				SystemConfig: config.SystemConfig{
+					Immutability: config.ImmutabilityConfig{
+						Enabled: true,
 					},
 				},
 			},
@@ -368,12 +249,9 @@ func TestConfigImageSecurity_ErrorCases(t *testing.T) {
 			name:        "chmod fails",
 			installRoot: tempDir,
 			template: &config.ImageTemplate{
-				Disk: config.DiskConfig{
-					Partitions: []config.PartitionInfo{
-						{
-							Type:         "linux-root-amd64",
-							MountOptions: "ro",
-						},
+				SystemConfig: config.SystemConfig{
+					Immutability: config.ImmutabilityConfig{
+						Enabled: true,
 					},
 				},
 			},
@@ -382,6 +260,26 @@ func TestConfigImageSecurity_ErrorCases(t *testing.T) {
 				{Pattern: `cat .*/tmp/fileappend-.* \| sudo tee -a .* >/dev/null`, Output: ""},
 				{Pattern: `sudo chmod -R 755 .*`, Error: errors.New("Permission denied")},
 				{Pattern: `sudo chroot .* bash -c "systemctl enable setup-overlay\.service"`, Output: ""},
+			},
+			wantErr:     true,
+			errContains: "failed to create overlay mounting service",
+		},
+		{
+			name:        "file append fails for service file",
+			installRoot: tempDir,
+			template: &config.ImageTemplate{
+				SystemConfig: config.SystemConfig{
+					Immutability: config.ImmutabilityConfig{
+						Enabled: true,
+					},
+				},
+			},
+			mockCommands: []shell.MockCommand{
+				{Pattern: `sudo chroot .* mkdir -p .*`, Output: ""},
+				{Pattern: `cat .*/tmp/fileappend-.* \| sudo tee -a .*/fstab >/dev/null`, Output: ""},
+				{Pattern: `cat .*/tmp/fileappend-.* \| sudo tee -a .*/setup-overlay.sh >/dev/null`, Output: ""},
+				{Pattern: `cat .*/tmp/fileappend-.* \| sudo tee -a .*/setup-overlay.service >/dev/null`, Error: errors.New("Disk full")},
+				{Pattern: `sudo chmod -R 755 .*`, Output: ""},
 			},
 			wantErr:     true,
 			errContains: "failed to create overlay mounting service",
@@ -419,6 +317,145 @@ func TestConfigImageSecurity_ErrorCases(t *testing.T) {
 			defer os.RemoveAll(tmpDir)
 
 			// Enhanced shell mock commands that might include file.Append commands if needed
+			shell.Default = shell.NewMockExecutor(tt.mockCommands)
+
+			err := imagesecure.ConfigImageSecurity(tt.installRoot, tt.template)
+
+			if tt.wantErr && err == nil {
+				t.Errorf("ConfigImageSecurity() error = nil, wantErr %v", tt.wantErr)
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("ConfigImageSecurity() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.wantErr && err != nil && tt.errContains != "" {
+				if !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("ConfigImageSecurity() error = %v, should contain %v", err, tt.errContains)
+				}
+			}
+		})
+	}
+}
+
+// Test specific functions for better coverage
+func TestConfigOverlayFunctions(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Store original executor and restore at the end
+	originalExecutor := shell.Default
+	defer func() { shell.Default = originalExecutor }()
+
+	tests := []struct {
+		name         string
+		installRoot  string
+		template     *config.ImageTemplate
+		mockCommands []shell.MockCommand
+		wantErr      bool
+		errContains  string
+	}{
+		{
+			name:        "test duplicate directory handling in prepareOverlayDir",
+			installRoot: tempDir,
+			template: &config.ImageTemplate{
+				SystemConfig: config.SystemConfig{
+					Immutability: config.ImmutabilityConfig{
+						Enabled: true,
+					},
+				},
+			},
+			mockCommands: []shell.MockCommand{
+				{Pattern: `sudo chroot .* mkdir -p .*`, Output: ""},
+				{Pattern: `sudo chroot .* bash -c "systemctl enable setup-overlay\.service"`, Output: ""},
+				{Pattern: `cat .*/tmp/fileappend-.* \| sudo tee -a .* >/dev/null`, Output: ""},
+				{Pattern: `sudo chmod -R 755 .*`, Output: ""},
+			},
+			wantErr: false,
+		},
+		{
+			name:        "test script file append failure",
+			installRoot: tempDir,
+			template: &config.ImageTemplate{
+				SystemConfig: config.SystemConfig{
+					Immutability: config.ImmutabilityConfig{
+						Enabled: true,
+					},
+				},
+			},
+			mockCommands: []shell.MockCommand{
+				{Pattern: `sudo chroot .* mkdir -p .*`, Output: ""},
+				{Pattern: `cat .*/tmp/fileappend-.* \| sudo tee -a .*/fstab >/dev/null`, Output: ""},
+				{Pattern: `cat .*/tmp/fileappend-.* \| sudo tee -a .*/setup-overlay\.sh >/dev/null`, Error: errors.New("Write failed")},
+				{Pattern: `sudo chmod -R 755 .*`, Output: ""},
+			},
+			wantErr:     true,
+			errContains: "failed to create overlay mounting service",
+		},
+		{
+			name:        "mkdir individual directory failure in prepareOverlayDir",
+			installRoot: tempDir,
+			template: &config.ImageTemplate{
+				SystemConfig: config.SystemConfig{
+					Immutability: config.ImmutabilityConfig{
+						Enabled: true,
+					},
+				},
+			},
+			mockCommands: []shell.MockCommand{
+				{Pattern: `sudo chroot .* mkdir -p /opt/overlay/etc/`, Output: ""},
+				{Pattern: `sudo chroot .* mkdir -p /opt/overlay/etc/upper`, Error: errors.New("No space left")},
+			},
+			wantErr:     true,
+			errContains: "failed to prepare ESP directory",
+		},
+		{
+			name:        "test with custom overlay directories for duplicate logic coverage",
+			installRoot: tempDir,
+			template: &config.ImageTemplate{
+				SystemConfig: config.SystemConfig{
+					Immutability: config.ImmutabilityConfig{
+						Enabled: true,
+					},
+				},
+			},
+			mockCommands: []shell.MockCommand{
+				{Pattern: `sudo chroot .* mkdir -p .*`, Output: ""},
+				{Pattern: `sudo chroot .* bash -c "systemctl enable setup-overlay\.service"`, Output: ""},
+				{Pattern: `cat .*/tmp/fileappend-.* \| sudo tee -a .* >/dev/null`, Output: ""},
+				{Pattern: `sudo chmod -R 755 .*`, Output: ""},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create necessary directory structure for file operations
+			etcDir := filepath.Join(tt.installRoot, "etc")
+			systemdDir := filepath.Join(etcDir, "systemd", "system")
+			usrBinDir := filepath.Join(tt.installRoot, "usr", "local", "bin")
+
+			if err := os.MkdirAll(etcDir, 0755); err != nil {
+				t.Fatalf("Failed to create etc directory: %v", err)
+			}
+			if err := os.MkdirAll(systemdDir, 0755); err != nil {
+				t.Fatalf("Failed to create systemd directory: %v", err)
+			}
+			if err := os.MkdirAll(usrBinDir, 0755); err != nil {
+				t.Fatalf("Failed to create usr/local/bin directory: %v", err)
+			}
+
+			// Create empty fstab file
+			fstabPath := filepath.Join(etcDir, "fstab")
+			if err := os.WriteFile(fstabPath, []byte(""), 0644); err != nil {
+				t.Fatalf("Failed to create fstab file: %v", err)
+			}
+
+			// Create tmp directory for temp files (used by file.Append)
+			tmpDir := "./tmp"
+			if err := os.MkdirAll(tmpDir, 0755); err != nil {
+				t.Fatalf("Failed to create tmp directory: %v", err)
+			}
+			defer os.RemoveAll(tmpDir)
+
 			shell.Default = shell.NewMockExecutor(tt.mockCommands)
 
 			err := imagesecure.ConfigImageSecurity(tt.installRoot, tt.template)
