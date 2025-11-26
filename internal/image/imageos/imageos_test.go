@@ -3201,7 +3201,3 @@ func TestConfigUserStartupScript(t *testing.T) {
 	// or use a real sed if available and not requiring sudo.
 	// But file.ReplaceRegexInFile forces sudo.
 }
-
-func stringContains(s, substr string) bool {
-	return len(s) >= len(substr) && s[0:len(substr)] == substr || len(s) > len(substr) && stringContains(s[1:], substr)
-}

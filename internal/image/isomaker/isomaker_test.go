@@ -1090,17 +1090,17 @@ func TestIsoMaker_BuildIsoImage_Integration(t *testing.T) {
 // Mock implementations for InitrdMaker and ImageOs
 
 type MockInitrdMaker struct {
-	initCalled             bool
-	downloadCalled         bool
-	buildCalled            bool
-	cleanCalled            bool
-	initrdVersion          string
-	initrdFilePath         string
-	initrdRootfsPath       string
-	shouldFailInit         bool
-	shouldFailDownload     bool
-	shouldFailBuild        bool
-	shouldFailClean        bool
+	initCalled         bool
+	downloadCalled     bool
+	buildCalled        bool
+	cleanCalled        bool
+	initrdVersion      string
+	initrdFilePath     string
+	initrdRootfsPath   string
+	shouldFailInit     bool
+	shouldFailDownload bool
+	shouldFailBuild    bool
+	shouldFailClean    bool
 }
 
 func (m *MockInitrdMaker) Init() error {

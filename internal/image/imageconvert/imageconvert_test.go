@@ -510,7 +510,11 @@ func TestConvertImageFile_CompressRemoveFailure(t *testing.T) {
 	if err := os.Chmod(tempDir, 0555); err != nil {
 		t.Fatalf("Failed to chmod temp dir: %v", err)
 	}
-	defer os.Chmod(tempDir, 0755)
+	defer func() {
+		if err := os.Chmod(tempDir, 0755); err != nil {
+			t.Logf("failed to reset temp dir permissions: %v", err)
+		}
+	}()
 
 	// This should succeed even if removal fails (it logs a warning)
 	err := imageConvert.ConvertImageFile(filePath, template)

@@ -1210,7 +1210,7 @@ func TestToRepoConfigData(t *testing.T) {
 		Enabled:   true,
 	}
 
-	repoType, name, url, gpgKey, _, _, pkgPrefix, _, _, _, _, _, _ := debRepo.ToRepoConfigData("amd64")
+	repoType, _, url, gpgKey, _, _, pkgPrefix, _, _, _, _, _, _ := debRepo.ToRepoConfigData("amd64")
 
 	if repoType != "deb" {
 		t.Errorf("Expected type deb, got %s", repoType)
