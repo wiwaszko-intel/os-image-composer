@@ -623,7 +623,7 @@ func TestConvertImageFile(t *testing.T) {
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("Expected error, but got none")
-				} else if tt.errorMsg != "" && err.Error() != "" && !contains(err.Error(), tt.errorMsg) {
+				} else if tt.errorMsg != "" && err.Error() != "" && !strings.Contains(err.Error(), tt.errorMsg) {
 					t.Errorf("Expected error containing '%s', but got: %v", tt.errorMsg, err)
 				}
 			} else {
@@ -698,7 +698,7 @@ func TestCompressImageFile(t *testing.T) {
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("Expected error, but got none")
-				} else if tt.errorMsg != "" && err.Error() != "" && !contains(err.Error(), tt.errorMsg) {
+				} else if tt.errorMsg != "" && err.Error() != "" && !strings.Contains(err.Error(), tt.errorMsg) {
 					t.Errorf("Expected error containing '%s', but got: %v", tt.errorMsg, err)
 				}
 			} else {
@@ -708,8 +708,4 @@ func TestCompressImageFile(t *testing.T) {
 			}
 		})
 	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && s[0:len(substr)] == substr || (len(s) > len(substr) && contains(s[1:], substr))
 }

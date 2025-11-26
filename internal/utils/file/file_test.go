@@ -47,6 +47,9 @@ func (e noSudoExecutor) ExecCmdWithInput(inputStr string, cmdStr string, sudo bo
 func TestMain(m *testing.M) {
 	original := shell.Default
 	shell.Default = noSudoExecutor{}
+	defer func() {
+		shell.Default = original
+	}()
 	code := m.Run()
 	shell.Default = original
 	os.Exit(code)
