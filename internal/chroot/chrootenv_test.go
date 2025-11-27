@@ -426,7 +426,9 @@ func TestChrootEnv_CleanupChrootEnv_ErrorPaths(t *testing.T) {
 		t.Skipf("Cannot create test directory: %v", err)
 		return
 	}
-	os.WriteFile(filepath.Join(userBinDir, "bash"), []byte("test\n"), 0644)
+	if err := os.WriteFile(filepath.Join(userBinDir, "bash"), []byte("test\n"), 0644); err != nil {
+		t.Errorf("Cannot create test file: %v", err)
+	}
 	// Simulate stopGPG error
 	if err := chrootEnv.CleanupChrootEnv("os", "dist", "arch"); err == nil {
 		t.Errorf("expected error for stopGPG fail, got nil")
@@ -616,7 +618,9 @@ func TestChrootEnv_MountChrootPath(t *testing.T) {
 		ChrootEnvRoot: tempDir,
 	}
 	hostPath := filepath.Join(tempDir, "host")
-	os.Mkdir(hostPath, 0755)
+	if err := os.Mkdir(hostPath, 0755); err != nil {
+		t.Errorf("Failed to create host path: %v", err)
+	}
 	chrootPath := "/mnt"
 
 	// Mock shell
@@ -649,8 +653,12 @@ func TestChrootEnv_InitChrootEnv(t *testing.T) {
 
 	// Create dummy chrootenv.tar.gz
 	buildDir := mockBuilder.GetChrootBuildDir()
-	os.MkdirAll(buildDir, 0755)
-	os.WriteFile(filepath.Join(buildDir, "chrootenv.tar.gz"), []byte("dummy"), 0644)
+	if err := os.MkdirAll(buildDir, 0755); err != nil {
+		t.Fatalf("Failed to create build dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(buildDir, "chrootenv.tar.gz"), []byte("dummy"), 0644); err != nil {
+		t.Fatalf("Failed to create dummy chrootenv.tar.gz: %v", err)
+	}
 
 	// Create dummy resolv.conf
 	// We don't need to create real resolv.conf because we mock cp command
@@ -697,7 +705,9 @@ func TestChrootEnv_CleanupChrootEnv(t *testing.T) {
 		ChrootEnvRoot: tempDir,
 		ChrootBuilder: &mockChrootBuilder{tempDir: tempDir},
 	}
-	os.MkdirAll(tempDir, 0755)
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		t.Fatalf("Failed to create chroot env dir: %v", err)
+	}
 
 	// Mock shell
 	originalShell := shell.Default
@@ -809,7 +819,9 @@ func TestChrootEnv_UpdateChrootLocalRepoMetadata_Success(t *testing.T) {
 
 	// RPM case
 	repoDir := filepath.Join(tempDir, "repo")
-	os.Mkdir(repoDir, 0755)
+	if err := os.Mkdir(repoDir, 0755); err != nil {
+		t.Fatalf("Failed to create repo dir: %v", err)
+	}
 
 	originalShell := shell.Default
 	defer func() { shell.Default = originalShell }()
@@ -877,7 +889,9 @@ func TestChrootEnv_TdnfInstallPackage_Success(t *testing.T) {
 
 	// Create install root
 	installRoot := filepath.Join(tempDir, "installroot")
-	os.Mkdir(installRoot, 0755)
+	if err := os.Mkdir(installRoot, 0755); err != nil {
+		t.Fatalf("Failed to create install root: %v", err)
+	}
 
 	if err := chrootEnv.TdnfInstallPackage("pkg", installRoot, []string{"repo1"}); err != nil {
 		t.Errorf("Tdnf install failed: %v", err)
@@ -899,7 +913,9 @@ func TestChrootEnv_AptInstallPackage_Success(t *testing.T) {
 
 	// Create install root
 	installRoot := filepath.Join(tempDir, "installroot")
-	os.Mkdir(installRoot, 0755)
+	if err := os.Mkdir(installRoot, 0755); err != nil {
+		t.Fatalf("Failed to create install root: %v", err)
+	}
 
 	// Test with package name cleaning
 	if err := chrootEnv.AptInstallPackage("pkg_amd64", "/installroot", []string{"repo1"}); err != nil {
