@@ -190,14 +190,14 @@ The build process follows these high-level steps:
 :::{toctree}
 :hidden:
 
-CLI Specification <os-image-composer-cli-specification>
-Security Objectives <image-composition-tool-security-objectives>
-Build Process <os-image-composer-build-process>
-image-manifest-specification
-Coding Style Guide <os-image-composer-coding-style>
-os-image-composer-caching.md
-os-image-composer-multi-repo-support.md
-os-image-composer-templates.md
+CLI Specification <os-image-composer-cli-specification.md>
+Security Objectives <image-composition-tool-security-objectives.md>
+Build Process <os-image-composer-build-process.md>
+image-manifest-specification.md
+Coding Style Guide <os-image-composer-coding-style.md>
+Caching in OS Image Composer <os-image-composer-caching.md>
+Multiple-package Repo Support <os-image-composer-multi-repo-support.md>
+Using Templates <os-image-composer-templates.md>
 
 :::
 hide_directive-->
