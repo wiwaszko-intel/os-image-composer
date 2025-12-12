@@ -623,10 +623,11 @@ See [License](https://github.com/open-edge-platform/os-image-composer/blob/main/
 :::{toctree}
 :hidden:
 
-Architecture <architecture/architecture>
-Prerequisites <tutorial/prerequisite>
-Secure Boot Configuration <tutorial/configure-secure-boot>
-release-notes
+Architecture <architecture/architecture.md>
+Prerequisites <tutorial/prerequisite.md>
+Secure Boot Configuration <tutorial/configure-secure-boot.md>
+Image User Configuration <configure-image-user.md>
+release-notes.md
 
 :::
 hide_directive-->
