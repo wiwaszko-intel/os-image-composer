@@ -724,6 +724,6 @@ systemConfigs:
 
 ## Notices
 
-### Licence Information
+### License Information
 
 See [License](./LICENSE).
