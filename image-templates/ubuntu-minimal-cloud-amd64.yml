@@ -1,6 +1,6 @@
 # Image metadata describing template identity
 # this template attempt to create ubuntu cloud minimal in qcow2 
-# based of https://cloud-images.ubuntu.com/minimal/releases/noble/release-20250429/ubuntu-24.04-minimal-cloudimg-amd64.img
+# based on https://cloud-images.ubuntu.com/minimal/releases/noble/release-20250429/ubuntu-24.04-minimal-cloudimg-amd64.img
 image:
   name: ubuntu-minimal-cloud-amd64
   version: "24.04"
