@@ -27,7 +27,7 @@ jobs:
   build-azl3-raw:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR code
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           persist-credentials: false
