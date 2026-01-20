@@ -428,7 +428,12 @@ fi
 echo "Coverage threshold: ${COV_THRESHOLD}%"
 echo "Calculation method: ${COVERAGE_METHOD}"
 
-if (( $(echo "${OVERALL_COVERAGE} >= ${COV_THRESHOLD}" | bc -l) )); then
+# Normalize both values to 1 decimal place to avoid precision issues
+# (e.g., 64.29 displays as 64.3 but fails >= 64.3)
+COVERAGE_NORMALIZED=$(printf '%.1f' "${OVERALL_COVERAGE}")
+THRESHOLD_NORMALIZED=$(printf '%.1f' "${COV_THRESHOLD}")
+
+if (( $(echo "${COVERAGE_NORMALIZED} >= ${THRESHOLD_NORMALIZED}" | bc -l) )); then
     echo -e "${GREEN}✓ Overall coverage PASSED threshold${NC}"
 else
     echo -e "${RED}✗ Overall coverage FAILED threshold${NC}"
@@ -438,8 +443,8 @@ fi
 # Generate coverage reports for saving
 echo "## Test Coverage Report" > coverage_report.txt
 echo "" >> coverage_report.txt
-echo "**Overall Coverage:** ${OVERALL_COVERAGE}%" >> coverage_report.txt
-echo "**Threshold:** ${COV_THRESHOLD}% (applies to overall coverage only)" >> coverage_report.txt
+echo "**Overall Coverage:** ${COVERAGE_NORMALIZED}%" >> coverage_report.txt
+echo "**Threshold:** ${THRESHOLD_NORMALIZED}% (applies to overall coverage only)" >> coverage_report.txt
 echo "**Status:** $(if [[ ${OVERALL_EXIT_CODE} -eq 0 ]]; then echo "PASSED"; else echo "FAILED"; fi)" >> coverage_report.txt
 echo "" >> coverage_report.txt
 
