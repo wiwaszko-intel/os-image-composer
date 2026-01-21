@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -45,6 +47,118 @@ func TestCreateAICommand(t *testing.T) {
 	searchOnlyFlag := flags.Lookup("search-only")
 	if searchOnlyFlag == nil {
 		t.Error("expected --search-only flag to be registered")
+	}
+
+	outputFlag := flags.Lookup("output")
+	if outputFlag == nil {
+		t.Error("expected --output flag to be registered")
+	}
+}
+
+func TestDetermineOutputPath(t *testing.T) {
+	templatesDir := "./image-templates"
+
+	tests := []struct {
+		name         string
+		aiOutputVal  string
+		expectedPath string
+		expectError  bool
+	}{
+		{
+			name:         "full path with extension",
+			aiOutputVal:  "/custom/path/my-template.yml",
+			expectedPath: "/custom/path/my-template.yml",
+		},
+		{
+			name:         "name only (no extension, no path)",
+			aiOutputVal:  "my-template",
+			expectedPath: filepath.Join(templatesDir, "my-template.yml"),
+		},
+		{
+			name:         "name with .yml extension",
+			aiOutputVal:  "custom-edge-image.yml",
+			expectedPath: "custom-edge-image.yml",
+		},
+		{
+			name:         "relative path with directory",
+			aiOutputVal:  "subdir/my-template.yml",
+			expectedPath: "subdir/my-template.yml",
+		},
+		{
+			name:        "no output specified",
+			aiOutputVal: "",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Save original value
+			origOutput := aiOutput
+			defer func() {
+				aiOutput = origOutput
+			}()
+
+			// Set test value
+			aiOutput = tt.aiOutputVal
+
+			path, err := determineOutputPath(templatesDir)
+
+			if tt.expectError {
+				if err == nil {
+					t.Error("expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			if path != tt.expectedPath {
+				t.Errorf("expected path '%s', got '%s'", tt.expectedPath, path)
+			}
+		})
+	}
+}
+
+func TestTemplateSaveIntegration(t *testing.T) {
+	// Create a temporary directory
+	tmpDir, err := os.MkdirTemp("", "ai-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Save original value
+	origOutput := aiOutput
+	defer func() {
+		aiOutput = origOutput
+	}()
+
+	// Test saving with --output (name only)
+	aiOutput = "test-template"
+
+	outputPath, err := determineOutputPath(tmpDir)
+	if err != nil {
+		t.Fatalf("failed to determine output path: %v", err)
+	}
+
+	expectedPath := filepath.Join(tmpDir, "test-template.yml")
+	if outputPath != expectedPath {
+		t.Errorf("expected path '%s', got '%s'", expectedPath, outputPath)
+	}
+
+	// Verify we can write to this path
+	testContent := "test: content"
+	if err := os.WriteFile(outputPath, []byte(testContent), 0644); err != nil {
+		t.Errorf("failed to write test file: %v", err)
+	}
+
+	// Verify the file was created
+	if _, err := os.Stat(outputPath); os.IsNotExist(err) {
+		t.Error("expected file to be created")
 	}
 }
 

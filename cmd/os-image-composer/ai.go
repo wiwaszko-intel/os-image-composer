@@ -18,6 +18,7 @@ var (
 	aiClearCache   bool
 	aiCacheStats   bool
 	aiSearchOnly   bool
+	aiOutput       string
 )
 
 func createAICommand() *cobra.Command {
@@ -32,6 +33,12 @@ new templates based on natural language descriptions.
 Examples:
   # Generate a template from a description
   os-image-composer ai "create a minimal edge image for elxr with docker support"
+
+  # Generate and save to image-templates/ with a name
+  os-image-composer ai "create a minimal edge image" --output my-custom-image
+
+  # Generate and save to a custom path
+  os-image-composer ai "create an edge image" --output /path/to/output.yml
 
   # Search for relevant templates without generating
   os-image-composer ai --search-only "cloud deployment with monitoring"
@@ -60,6 +67,7 @@ Configuration:
 	cmd.Flags().BoolVar(&aiClearCache, "clear-cache", false, "Clear the embedding cache")
 	cmd.Flags().BoolVar(&aiCacheStats, "cache-stats", false, "Show cache statistics")
 	cmd.Flags().BoolVar(&aiSearchOnly, "search-only", false, "Only search for templates, don't generate")
+	cmd.Flags().StringVar(&aiOutput, "output", "", "Save generated template to file (name saves to image-templates/<name>.yml, path saves to exact location)")
 
 	return cmd
 }
@@ -115,7 +123,7 @@ func runAICommand(cmd *cobra.Command, args []string) error {
 		return runSearch(engine, query)
 	}
 
-	return runGenerate(engine, query)
+	return runGenerate(engine, query, config.TemplatesDir)
 }
 
 func runSearch(engine *rag.Engine, query string) error {
@@ -158,7 +166,7 @@ func runSearch(engine *rag.Engine, query string) error {
 	return nil
 }
 
-func runGenerate(engine *rag.Engine, query string) error {
+func runGenerate(engine *rag.Engine, query string, templatesDir string) error {
 	log := logger.Logger()
 	ctx := context.Background()
 
@@ -192,10 +200,47 @@ func runGenerate(engine *rag.Engine, query string) error {
 	fmt.Println(template)
 	fmt.Println("--- End Template ---")
 
-	// Optionally save to file
-	fmt.Println("\nTo save this template, copy the YAML above to a file in image-templates/")
+	// Determine if we should save the template
+	shouldSave := aiOutput != ""
+
+	if shouldSave {
+		outputPath, err := determineOutputPath(templatesDir)
+		if err != nil {
+			return fmt.Errorf("failed to determine output path: %w", err)
+		}
+
+		// Ensure directory exists
+		dir := filepath.Dir(outputPath)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create directory %s: %w", dir, err)
+		}
+
+		// Write the template
+		if err := os.WriteFile(outputPath, []byte(template), 0644); err != nil {
+			return fmt.Errorf("failed to write template: %w", err)
+		}
+
+		fmt.Printf("\n✓ Template saved to: %s\n", outputPath)
+	} else {
+		fmt.Println("\nTo save this template, use --output <name-or-path>")
+	}
 
 	return nil
+}
+
+// determineOutputPath determines the output file path based on --output flag
+func determineOutputPath(templatesDir string) (string, error) {
+	if aiOutput == "" {
+		return "", fmt.Errorf("no output path specified")
+	}
+
+	// Check if it looks like a file path (has extension or path separator)
+	if filepath.Ext(aiOutput) != "" || filepath.Dir(aiOutput) != "." {
+		return aiOutput, nil
+	}
+
+	// Otherwise treat it as a name, save to templatesDir/<name>.yml
+	return filepath.Join(templatesDir, aiOutput+".yml"), nil
 }
 
 func showCacheStats(config ai.Config) error {
