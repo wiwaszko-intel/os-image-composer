@@ -83,6 +83,19 @@ func TestCreateInspectCommand(t *testing.T) {
 		}
 	})
 
+	t.Run("CommandFlags", func(t *testing.T) {
+		formatFlag := cmd.Flags().Lookup("pretty")
+		if formatFlag == nil {
+			t.Fatal("--pretty flag should be registered")
+		}
+		if formatFlag.DefValue != "false" {
+			t.Errorf("--pretty default should be 'false', got %q", formatFlag.DefValue)
+		}
+		if formatFlag.Usage == "" {
+			t.Error("--pretty should have usage text")
+		}
+	})
+
 	t.Run("ArgsValidation", func(t *testing.T) {
 		if cmd.Args == nil {
 			t.Fatal("Args validator should be set")
