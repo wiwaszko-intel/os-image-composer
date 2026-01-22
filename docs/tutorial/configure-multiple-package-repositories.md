@@ -47,7 +47,7 @@ Each repository entry supports the following properties:
 
 - **codename** (required): A unique identifier for the repository
 - **url** (required): The base URL of the package repository
-- **pkey** (optional but recommended): URL to the GPG public key for repository authentication, or `[trusted=yes]` to bypass GPG verification
+- **pkey** (strongly recommended): URL to the GPG public key for repository authentication. Technically this field is optional, but omitting it (or using `[trusted=yes]` to bypass GPG verification) should be limited to explicitly trusted internal repositories, as it disables signature verification and reduces security.
 
 ## Complete Template Structure
 
