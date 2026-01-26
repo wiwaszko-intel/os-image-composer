@@ -202,7 +202,7 @@ func (imageOs *ImageOs) InstallImageOs(diskPathIdMap map[string]string) (version
 		return
 	}
 
-	log.Infof("Configuring UKI...")
+	log.Infof("Configuring UKI... ")
 	if err = buildImageUKI(imageOs.installRoot, imageOs.template); err != nil {
 		err = fmt.Errorf("failed to configure UKI: %w", err)
 		return
