@@ -58,6 +58,12 @@ func TestCreateAICommand(t *testing.T) {
 func TestDetermineOutputPath(t *testing.T) {
 	templatesDir := "./image-templates"
 
+	// Get current working directory for absolute path tests
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+
 	tests := []struct {
 		name         string
 		aiOutputVal  string
@@ -77,12 +83,17 @@ func TestDetermineOutputPath(t *testing.T) {
 		{
 			name:         "name with .yml extension",
 			aiOutputVal:  "custom-edge-image.yml",
-			expectedPath: "custom-edge-image.yml",
+			expectedPath: filepath.Join(cwd, "custom-edge-image.yml"),
 		},
 		{
 			name:         "relative path with directory",
 			aiOutputVal:  "subdir/my-template.yml",
-			expectedPath: "subdir/my-template.yml",
+			expectedPath: filepath.Join(cwd, "subdir/my-template.yml"),
+		},
+		{
+			name:         "explicit relative path with ./",
+			aiOutputVal:  "./my-output",
+			expectedPath: filepath.Join(cwd, "my-output.yml"),
 		},
 		{
 			name:        "no output specified",
