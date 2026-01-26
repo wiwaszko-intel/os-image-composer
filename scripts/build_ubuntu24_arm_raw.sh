@@ -172,7 +172,7 @@ run_qemu_boot_test() {
     touch \"\$LOGFILE\" && chmod 666 \"\$LOGFILE\"    
     nohup qemu-system-aarch64 \\
         -m 2048 \\
-        -machine virt -accel hvf \\
+        -machine virt \\
         -enable-kvm \\
         -cpu host \\
         -drive if=none,file=\"\$IMAGE\",format=raw,id=nvme0 \\
