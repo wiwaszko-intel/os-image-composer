@@ -263,7 +263,7 @@ build_ubuntu24_raw_image() {
     exit 1
   fi
 
-  output=$( sudo -S ./os-image-composer build image-templates/ubuntu24-arm64-raw.yml)
+  output=$( sudo -S ./os-image-composer build image-templates/ubuntu24-arm64-raw.yml 2>&1)
   # Check for the success message in the output
   if echo "$output" | grep -q "image build completed successfully"; then
     echo "Ubuntu 24 raw Image build passed."
