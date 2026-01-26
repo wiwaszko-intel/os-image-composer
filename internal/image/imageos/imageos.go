@@ -909,17 +909,20 @@ func buildImageUKI(installRoot string, template *config.ImageTemplate) error {
 		log.Debugf("UKI created successfully on:", outputPath)
 		log.Infof("Target architecture is %v ", template.Target.Arch)
 
+		srcBootloader := ""
+		dstBootloader := ""
+
 		switch template.Target.Arch {
 		case "amd64":
 			log.Debugf("Target architecture is x86_64, proceeding with bootloader copy")
 			// 3. Copy systemd-bootx64.efi to ESP/EFI/BOOT/BOOTX64.EFI
-			srcBootloader := filepath.Join("usr", "lib", "systemd", "boot", "efi", "systemd-bootx64.efi")
-			dstBootloader := filepath.Join(espDir, "EFI", "BOOT", "BOOTX64.EFI")
+			srcBootloader = filepath.Join("usr", "lib", "systemd", "boot", "efi", "systemd-bootx64.efi")
+			dstBootloader = filepath.Join(espDir, "EFI", "BOOT", "BOOTX64.EFI")
 		case "arm64":
 			log.Debugf("Target architecture is ARM64, proceeding with bootloader copy")
 			// 3. Copy systemd-bootx64.efi to ESP/EFI/BOOT/BOOT64.EFI
-			srcBootloader := filepath.Join("usr", "lib", "systemd", "boot", "efi", "systemd-bootaa64.efi")
-			dstBootloader := filepath.Join(espDir, "EFI", "BOOT", "BOOTAA64.EFI")
+			srcBootloader = filepath.Join("usr", "lib", "systemd", "boot", "efi", "systemd-bootaa64.efi")
+			dstBootloader = filepath.Join(espDir, "EFI", "BOOT", "BOOTAA64.EFI")
 		default:
 			log.Infof("Skipping bootloader copy for architecture: %s", template.Target.Arch)
 			return nil
