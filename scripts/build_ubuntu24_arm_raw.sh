@@ -177,7 +177,7 @@ run_qemu_boot_test() {
         -cpu host \\
         -drive if=none,file=\"\$IMAGE\",format=raw,id=nvme0 \\
         -device nvme,drive=nvme0,serial=deadbeef \\
-        -bios edk2-aarch64-code.fd \\
+        -bios /usr/share/qemu/edk2-aarch64-code.fd \\
         -nographic \\
         -serial mon:stdio \\
         > \"\$LOGFILE\" 2>&1 &
