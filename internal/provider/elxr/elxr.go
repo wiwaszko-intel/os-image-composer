@@ -54,8 +54,11 @@ func (p *eLxr) Name(dist, arch string) string {
 func (p *eLxr) Init(dist, arch string) error {
 
 	// Architecture mapping if needed
-	if arch == "x86_64" {
-		arch = "amd64"
+	switch arch {
+		case "x86_64":
+			arch = "amd64"
+		case "aarch64":
+			arch = "arm64"
 	}
 
 	cfgs, err := loadRepoConfig("", arch)
