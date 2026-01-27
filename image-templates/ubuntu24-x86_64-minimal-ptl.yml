@@ -87,7 +87,6 @@ packageRepositories:
   - codename: "noble"
     url: "https://ubit-artifactory-or.intel.com/artifactory/turtle-creek-debian-local"
     pkey: "[trusted=yes]" # Uncomment and replace in real config
-    insecureSkipVerify: true
     component: "universe"
 
 systemConfig:
