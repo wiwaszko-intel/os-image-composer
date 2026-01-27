@@ -15,7 +15,7 @@ on:
         - "false"
   push:
     branches:
-      - srmungar_armlocal_dev_branch
+      - elvin_arm
 
 permissions:
   contents: read
@@ -83,26 +83,15 @@ jobs:
           # Run the Ubuntu24 raw image build script
           ./scripts/build_ubuntu24_arm_raw.sh $ARGS
           echo "Ubuntu24 raw image build completed."
-      - name: Upload Binary
-        uses: actions/upload-artifact@v4 
-        with:
-          name: ARM-BINARY # The name for your artifact
-          path: path/to/artifact/
-
-      - name: Notify on failure
-        if: ${{ failure() && github.event_name == 'pull_request' }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REVIEWER_ID: srmungar
+      - name: Set file permissions for artifacts
         run: |
-          PR_AUTHOR=$(jq --raw-output 'try .pull_request.user.login // empty' "$GITHUB_EVENT_PATH")
-          if [ -z "$PR_AUTHOR" ]; then
-            echo "PR_AUTHOR not found in event payload. Skipping notification."
-            exit 0
-          fi
-          COMMENT_BODY="Hey @$PR_AUTHOR and @$REVIEWER_ID — the Ubuntu24 raw image build has failed. Please check the logs."
-          curl -s -X POST \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            --data "{\"body\": \"$COMMENT_BODY\"}" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments"
+          sudo chmod -R 755 workspace/ || true
+          find workspace/*/imagebuild/minimal/ -name "*.raw*" -exec chmod 777 {} \; || true
+
+      - name: GitHub Upload Release Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ubuntu24-arm-raw-image
+          path: |
+            workspace/*/imagebuild/minimal/*.raw*
+          retention-days: 30
