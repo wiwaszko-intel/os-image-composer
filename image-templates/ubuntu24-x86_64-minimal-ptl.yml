@@ -74,14 +74,12 @@ packageRepositories:
   - codename: "noble"
     url: "https://af01p-png.devtools.intel.com/artifactory/hspe-edge-png-local/ubuntu/noble/noble/20251029-0810_SW_A_REL6_RC02_plus"
     pkey: "https://af01p-png.devtools.intel.com/artifactory/hspe-edge-png-local/ubuntu/keys/adl-hirsute-public.gpg" # Uncomment and replace in real config
-    insecureSkipVerifyPKey: true  # Skip certificate verification for GPG key download (like wget --no-check-cert)
     component: "main non-free multimedia internal"
     priority: 1001 # Higher priority means preferred over other repos
 
   - codename: "noble"
     url: "https://af01p-png.devtools.intel.com/artifactory/hspe-edge-repos-png-local-png-local/ubuntu-ppa2"
     pkey: "https://af01p-png.devtools.intel.com/artifactory/hspe-edge-repos-png-local-png-local/ubuntu-ppa2/pub.gpg" # Uncomment and replace in real config
-    insecureSkipVerifyPKey: true  # Skip certificate verification for GPG key download
     priority: 1001 # Higher priority means preferred over other repos
 
   - codename: "noble"
