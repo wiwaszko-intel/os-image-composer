@@ -174,7 +174,8 @@ func mergeSystemConfig(defaultConfig, userConfig SystemConfig) SystemConfig {
 	}
 
 	// Merge immutability config - only if user provided some immutability configuration
-	if isEmptyImmutabilityConfig(userConfig.Immutability) {
+	//if isEmptyImmutabilityConfig(userConfig.Immutability) {
+	if userConfig.Immutability.wasProvided == false {
 		// User didn't provide any immutability config, keep default
 		merged.Immutability = defaultConfig.Immutability
 	} else {
@@ -214,6 +215,25 @@ func mergeSystemConfig(defaultConfig, userConfig SystemConfig) SystemConfig {
 // isEmptyImmutabilityConfig checks if the immutability config is effectively empty
 // (i.e., user didn't provide any meaningful immutability configuration)
 // We only consider it empty if ALL fields are zero/empty values
+func isEmptyImmutabilityConfig1(config ImmutabilityConfig) bool {
+	// If user has ANY secure boot configuration, they provided config
+	if config.SecureBootDBKey != "" ||
+		config.SecureBootDBCrt != "" ||
+		config.SecureBootDBCer != "" {
+		return false
+	}
+
+	// If enabled is true, they explicitly set it
+	if config.Enabled {
+		return false
+	}
+
+	// If enabled is false and no secure boot config, we assume it's empty
+	// This is a limitation - we can't distinguish between explicit false vs zero-value false
+	// But this covers the most common case where users don't specify immutability at all
+	return true
+}
+
 func isEmptyImmutabilityConfig(config ImmutabilityConfig) bool {
 	// If user has ANY secure boot configuration, they provided config
 	if config.SecureBootDBKey != "" ||
