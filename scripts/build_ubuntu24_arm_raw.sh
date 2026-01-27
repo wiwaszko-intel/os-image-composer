@@ -279,8 +279,6 @@ build_ubuntu24_raw_image() {
         echo "QEMU boot test PASSED for Ubuntu 24 raw image"
       else
         echo "QEMU boot test FAILED for Ubuntu 24 raw image"
-        echo "Build output:"
-        echo "$output"
         exit 1
       fi
       # Clean up after QEMU test to free space
@@ -288,6 +286,8 @@ build_ubuntu24_raw_image() {
     fi
   else
     echo "Ubuntu 24 raw Image build failed."
+    echo "Build output:"
+    echo "$output"
     exit 1 # Exit with error if build fails
   fi
 }
