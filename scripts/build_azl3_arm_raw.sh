@@ -168,7 +168,7 @@ run_qemu_boot_test() {
     ORIGINAL_DIR=\"$ORIGINAL_DIR\"
     
     touch \"\$LOGFILE\" && chmod 666 \"\$LOGFILE\"    
-    nohup qemu-system-x86_64 \\
+    nohup qemu-system-aarch64 \\
         -m 2048 \\
         -enable-kvm \\
         -cpu host \\
@@ -243,7 +243,7 @@ build_azl3_raw_image() {
     echo "AZL3 raw Image build passed."
     if [ "$RUN_QEMU_TESTS" = true ]; then
       echo "Running QEMU boot test for AZL3 raw image..."
-      if run_qemu_boot_test "azl3-x86_64-minimal"; then
+      if run_qemu_boot_test "azl3-aarch64-edge-raw"; then
         echo "QEMU boot test PASSED for AZL3 raw image"
       else
         echo "QEMU boot test FAILED for AZL3 raw image"
