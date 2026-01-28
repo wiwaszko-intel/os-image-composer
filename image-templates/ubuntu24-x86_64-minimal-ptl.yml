@@ -331,6 +331,7 @@ systemConfig:
     - mqtt_4.2.8.8-1
     - tpm-provision_4.2.8.8-1
     - trtl_4.2.8.8-1
+    - dkms
     
   kernel:
     version: "6.14"
@@ -340,7 +341,7 @@ systemConfig:
       - linux-headers-6.17-intel_251118t134731z-r2
       - linux-image-6.17-intel_251118t134731z-r2
     # alternative cmdline in case of i915 usage, using a default kernel
-    # cmdline: "console=ttyS0,115200 console=tty0 loglevel=7 i915.force_probe=* udmabuf.list_limit=8192"
+    # cmdline: "console=ttyS0,115200 console=tty0 loglevel=7"
 
   users:
     - name: rbfadmin
@@ -378,10 +379,43 @@ systemConfig:
     # - cmd: "sed -i 's/GRUB_DEFAULT=\"\\(.*\\)\"/GRUB_DEFAULT=\"\\1Advanced options for Ubuntu>Ubuntu, with Linux 6.17-intel\"/' /etc/default/grub"
     # Configure GRUB timeout
     - cmd: "sed -e 's@^GRUB_TIMEOUT_STYLE=hidden@# GRUB_TIMEOUT_STYLE=hidden@' -e 's@^GRUB_TIMEOUT=0@GRUB_TIMEOUT=5@g' -i /etc/default/grub"
-    - cmd: "update-grub"
-    # Install NPU driver
+    # Install NPU driver (firmware, compiler, runtime only - skip kernel module for chroot)
     - cmd: "mkdir -m 755 -pv /opt/vpu"
     - cmd: "curl -s https://af01p-ir.devtools.intel.com/artifactory/drivers_vpu_linux_client-ir-local/engineering-drops/driver/main/release/25ww49.1.1/npu-linux-driver-ci-1.30.0.20251128-19767695845-ubuntu2404-release.tar.gz | tar -zxv --strip-components=1 -C /opt/vpu -f -"
+    - cmd: "sed -i.bak \"/intel-level-zero',/d; s/\\\"intel-level-zero\\\", //g\" /opt/vpu/npu-drv-installer"
+    # Patch npu-drv-installer to skip module operations that don't work in chroot
+    - cmd: "sed -i 's/^def load_module():/def load_module_disabled():/' /opt/vpu/npu-drv-installer"
+    - cmd: "sed -i 's/^def unload_module():/def unload_module_disabled():/' /opt/vpu/npu-drv-installer"
+    - cmd: "sed -i 's/^def create_user(/def create_user_disabled(/' /opt/vpu/npu-drv-installer"
+    - cmd: "sed -i 's/load_module()/pass  # load_module() disabled for chroot/' /opt/vpu/npu-drv-installer"
+    - cmd: "sed -i 's/create_user(/pass  # create_user() disabled for chroot; create_user_disabled(/' /opt/vpu/npu-drv-installer"
+    - cmd: "/opt/vpu/npu-drv-installer --driver_only --skip_module_install --skip_module_load --skip_user_creation"
+    # Create initramfs hook to build NPU kernel module before initramfs generation
+    - cmd: "mkdir -p /etc/initramfs-tools/hooks"
+    - cmd: "echo '#!/bin/sh' > /etc/initramfs-tools/hooks/npu-module"
+    - cmd: "echo 'PREREQ=\"\"' >> /etc/initramfs-tools/hooks/npu-module"
+    - cmd: "echo 'prereqs() { echo \"$PREREQ\"; }' >> /etc/initramfs-tools/hooks/npu-module"
+    - cmd: "echo 'case \"$1\" in' >> /etc/initramfs-tools/hooks/npu-module"
+    - cmd: "echo '    prereqs) prereqs; exit 0;;' >> /etc/initramfs-tools/hooks/npu-module"
+    - cmd: "echo 'esac' >> /etc/initramfs-tools/hooks/npu-module"
+    - cmd: "echo '. /usr/share/initramfs-tools/hook-functions' >> /etc/initramfs-tools/hooks/npu-module"
+    - cmd: "echo 'LOCK_FILE=\"/var/lib/npu-module-installed\"' >> /etc/initramfs-tools/hooks/npu-module"
+    - cmd: "echo 'if [ ! -f \"$LOCK_FILE\" ] && [ -d \"/opt/vpu/packages/internal\" ]; then' >> /etc/initramfs-tools/hooks/npu-module"
+    - cmd: "echo '    echo \"Building NPU kernel module for initramfs...\"' >> /etc/initramfs-tools/hooks/npu-module"
+    - cmd: "echo '    cd /opt/vpu' >> /etc/initramfs-tools/hooks/npu-module"
+    - cmd: "echo '    if dpkg -i packages/internal/intel-kernel-module-npu-internal_*.deb >> /var/log/npu-module-install.log 2>&1; then' >> /etc/initramfs-tools/hooks/npu-module"
+    - cmd: "echo '        touch \"$LOCK_FILE\"' >> /etc/initramfs-tools/hooks/npu-module"
+    - cmd: "echo '        echo \"NPU kernel module installed successfully\"' >> /etc/initramfs-tools/hooks/npu-module"
+    - cmd: "echo '    else' >> /etc/initramfs-tools/hooks/npu-module"
+    - cmd: "echo '        echo \"Warning: Failed to install NPU kernel module\" >&2' >> /etc/initramfs-tools/hooks/npu-module"
+    - cmd: "echo '    fi' >> /etc/initramfs-tools/hooks/npu-module"
+    - cmd: "echo 'fi' >> /etc/initramfs-tools/hooks/npu-module"
+    - cmd: "echo 'if [ -f \"/lib/modules/$(uname -r)/updates/dkms/intel_vpu.ko\" ]; then' >> /etc/initramfs-tools/hooks/npu-module"
+    - cmd: "echo '    manual_add_modules intel_vpu' >> /etc/initramfs-tools/hooks/npu-module"
+    - cmd: "echo '    echo \"NPU module added to initramfs\"' >> /etc/initramfs-tools/hooks/npu-module"
+    - cmd: "echo 'fi' >> /etc/initramfs-tools/hooks/npu-module"
+    - cmd: "chmod +x /etc/initramfs-tools/hooks/npu-module"
+    - cmd: "echo 'intel_vpu' >> /etc/initramfs-tools/modules"
     # Install audio firmware
     - cmd: "mkdir -pv /lib/firmware/intel/sof-ipc4/mtl/ /lib/firmware/intel/sof-ace-tplg/"
     - cmd: "wget https://af01p-png.devtools.intel.com/artifactory/hspe-edge-png-local/ubuntu-mtl-audio-tplg-6/c0/intel/sof-ipc4/mtl/sof-mtl.ldc -O /lib/firmware/intel/sof-ipc4/mtl/sof-mtl.ldc"
