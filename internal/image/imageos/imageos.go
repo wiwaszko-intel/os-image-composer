@@ -1242,6 +1242,10 @@ func buildUKI(installRoot, kernelPath, initrdPath, cmdlineFile, outputPath strin
 			log.Errorf("non-immutable: Failed to build UKI: %v failing command %s", err, cmd)
 			err = fmt.Errorf("failed to build UKI: %w", err)
 		}
+                else {
+		       log.Infof("non-immutable: Successfully built UKI: %v  command %s", err, cmd)
+                }
+		
 	}
 	return err
 }
