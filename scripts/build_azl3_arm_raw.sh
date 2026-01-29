@@ -243,7 +243,7 @@ build_azl3_raw_image() {
     echo "AZL3 raw Image build passed."
     if [ "$RUN_QEMU_TESTS" = true ]; then
       echo "Running QEMU boot test for AZL3 raw image..."
-      if run_qemu_boot_test "azl3-aarch64-edge-raw"; then
+      if run_qemu_boot_test "azl3-aarch64-edge"; then
         echo "QEMU boot test PASSED for AZL3 raw image"
       else
         echo "QEMU boot test FAILED for AZL3 raw image"
