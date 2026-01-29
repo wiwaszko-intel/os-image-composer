@@ -30,7 +30,7 @@ disk:
       mountOptions: umask=0077
 
     - id: rootfs
-      type: linux-root-arm64-signed-template
+      type: linux-root-arm64
       start: 513MiB
       end: "0"
       fsType: ext4
