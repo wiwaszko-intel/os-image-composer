@@ -908,8 +908,7 @@ func buildImageUKI(installRoot string, template *config.ImageTemplate) error {
 		if _, err := os.Stat(installRoot); err == nil {
 		log.Infof("Install Root Exists at %s", installRoot)
 		return nil
-		}
-		else {
+		}else {
 		log.Errorf("Install Root does not exist at %s", installRoot)
 		}	
 		if _, err := os.Stat(kernelPath); err == nil {
