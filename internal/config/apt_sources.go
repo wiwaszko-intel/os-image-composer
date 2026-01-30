@@ -391,18 +391,42 @@ func (t *ImageTemplate) downloadAndAddGPGKeys(repos []PackageRepository) error {
 			continue
 		}
 
-		log.Infof("Downloading GPG key for repository %s from %s", getRepositoryName(repo), repo.PKey)
+		// Check if pkey is a local file path (like pbGPGKey in provider configs)
+		isLocalFilePath := !strings.HasPrefix(repo.PKey, "http://") &&
+			!strings.HasPrefix(repo.PKey, "https://") &&
+			!strings.HasPrefix(repo.PKey, "file://") &&
+			strings.HasPrefix(repo.PKey, "/")
 
-		// Download the GPG key
-		keyData, err := downloadGPGKey(repo.PKey)
-		if err != nil {
-			return fmt.Errorf("failed to download GPG key from %s: %w", repo.PKey, err)
-		}
+		var keyData []byte
+		var tempKeyFile string
+		var err error
 
-		// Create temporary file for the GPG key
-		tempKeyFile, err := createTempGPGKeyFile(repo.PKey, keyData)
-		if err != nil {
-			return fmt.Errorf("failed to create temp GPG key file: %w", err)
+		if isLocalFilePath {
+			// For local file paths, read the file directly from the host system
+			log.Infof("Using local GPG key file for repository %s: %s", getRepositoryName(repo), repo.PKey)
+			keyData, err = os.ReadFile(repo.PKey)
+			if err != nil {
+				return fmt.Errorf("failed to read local GPG key from %s: %w", repo.PKey, err)
+			}
+
+			// Create temporary file for the GPG key
+			tempKeyFile, err = createTempGPGKeyFile(repo.PKey, keyData)
+			if err != nil {
+				return fmt.Errorf("failed to create temp GPG key file: %w", err)
+			}
+		} else {
+			// For URLs, download the GPG key
+			log.Infof("Downloading GPG key for repository %s from %s", getRepositoryName(repo), repo.PKey)
+			keyData, err = downloadGPGKey(repo.PKey)
+			if err != nil {
+				return fmt.Errorf("failed to download GPG key from %s: %w", repo.PKey, err)
+			}
+
+			// Create temporary file for the GPG key
+			tempKeyFile, err = createTempGPGKeyFile(repo.PKey, keyData)
+			if err != nil {
+				return fmt.Errorf("failed to create temp GPG key file: %w", err)
+			}
 		}
 
 		// Determine the final destination path in the image

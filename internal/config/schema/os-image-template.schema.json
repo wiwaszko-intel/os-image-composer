@@ -297,6 +297,10 @@
               "description": "URL to GPG key file (must start with http://, https://, or file://)"
             },
             {
+              "pattern": "^/",
+              "description": "Absolute local file path to GPG key file"
+            },
+            {
               "const": "[trusted=yes]",
               "description": "Special value to mark repository as trusted and skip GPG verification"
             },
