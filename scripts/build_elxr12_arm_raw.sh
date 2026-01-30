@@ -168,7 +168,7 @@ run_qemu_boot_test() {
     ORIGINAL_DIR=\"$ORIGINAL_DIR\"
     
     touch \"\$LOGFILE\" && chmod 666 \"\$LOGFILE\"    
-    nohup qemu-system-x86_64 \\
+    nohup qemu-system-aarch64 \\
         -m 2048 \\
         -enable-kvm \\
         -cpu host \\
