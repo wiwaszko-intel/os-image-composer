@@ -615,10 +615,10 @@ systemConfig:
 // TestValidateAndFixImmutabilityConfig tests the validateAndFixImmutabilityConfig function
 func TestValidateAndFixImmutabilityConfig(t *testing.T) {
 	tests := []struct {
-		name                  string
-		template              *ImageTemplate
-		expectImmutability    bool
-		description           string
+		name               string
+		template           *ImageTemplate
+		expectImmutability bool
+		description        string
 	}{
 		{
 			name: "Immutability disabled - no validation",
@@ -728,7 +728,7 @@ func TestValidateAndFixImmutabilityConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			validateAndFixImmutabilityConfig(tt.template)
 			if tt.template.SystemConfig.Immutability.Enabled != tt.expectImmutability {
-				t.Errorf("%s: expected immutability=%v, got=%v", 
+				t.Errorf("%s: expected immutability=%v, got=%v",
 					tt.description, tt.expectImmutability, tt.template.SystemConfig.Immutability.Enabled)
 			}
 		})
@@ -741,7 +741,7 @@ func TestLoadProviderRepoConfigWithValidData(t *testing.T) {
 	tmpDir := t.TempDir()
 	osConfigDir := filepath.Join(tmpDir, "osv", "test-os", "test-dist")
 	providerDir := filepath.Join(osConfigDir, "providerconfigs")
-	
+
 	if err := os.MkdirAll(providerDir, 0755); err != nil {
 		t.Fatalf("Failed to create test directory: %v", err)
 	}
@@ -819,7 +819,7 @@ gpgkey: "https://example.com/key.gpg"
 // TestLoadProviderRepoConfigArchVariants tests different architecture naming
 func TestLoadProviderRepoConfigArchVariants(t *testing.T) {
 	archVariants := []string{"amd64", "x86_64", "arm64", "aarch64"}
-	
+
 	for _, arch := range archVariants {
 		t.Run("Arch_"+arch, func(t *testing.T) {
 			_, err := LoadProviderRepoConfig("test-os", "test-dist", arch)
@@ -832,4 +832,3 @@ func TestLoadProviderRepoConfigArchVariants(t *testing.T) {
 		})
 	}
 }
-

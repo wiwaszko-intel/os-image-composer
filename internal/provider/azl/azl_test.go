@@ -746,7 +746,7 @@ func TestAzlPreProcessWithMockEnv(t *testing.T) {
 	}
 
 	template := createTestImageTemplate()
-	
+
 	// PreProcess will fail at installHostDependency but we can verify the call chain
 	err := azl.PreProcess(template)
 	if err == nil {
@@ -774,7 +774,7 @@ func TestAzlDownloadImagePkgsWithMockEnv(t *testing.T) {
 
 	template := createTestImageTemplate()
 	template.DotFilePath = ""
-	
+
 	// downloadImagePkgs will fail at package download but we can verify the call
 	err := azl.downloadImagePkgs(template)
 	if err == nil {
@@ -793,7 +793,7 @@ func TestAzlBuildRawImageWithMock(t *testing.T) {
 
 	template := createTestImageTemplate()
 	template.Target.ImageType = "raw"
-	
+
 	err := azl.buildRawImage(template)
 	if err == nil {
 		t.Error("Expected error with mock environment")
@@ -813,7 +813,7 @@ func TestAzlBuildInitrdImageWithMock(t *testing.T) {
 
 	template := createTestImageTemplate()
 	template.Target.ImageType = "img"
-	
+
 	err := azl.buildInitrdImage(template)
 	if err == nil {
 		t.Error("Expected error with mock environment")
@@ -833,7 +833,7 @@ func TestAzlBuildIsoImageWithMock(t *testing.T) {
 
 	template := createTestImageTemplate()
 	template.Target.ImageType = "iso"
-	
+
 	err := azl.buildIsoImage(template)
 	if err == nil {
 		t.Error("Expected error with mock environment")
@@ -852,13 +852,13 @@ func TestAzlPostProcessSuccess(t *testing.T) {
 	}
 
 	template := createTestImageTemplate()
-	
+
 	// Test with no input error
 	err := azl.PostProcess(template, nil)
 	if err != nil {
 		t.Errorf("Expected nil error when input error is nil, got: %v", err)
 	}
-	
+
 	// Test with input error - should return the same error
 	inputErr := fmt.Errorf("build failed")
 	err = azl.PostProcess(template, inputErr)
@@ -912,16 +912,16 @@ func TestLoadRepoConfigFromYAMLAarch64(t *testing.T) {
 func TestDisplayImageArtifacts(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir := t.TempDir()
-	
+
 	// Test with empty directory
 	displayImageArtifacts(tempDir, "TEST")
 	t.Log("displayImageArtifacts called successfully with empty directory")
-	
+
 	// Test with different image types
 	displayImageArtifacts(tempDir, "RAW")
 	displayImageArtifacts(tempDir, "ISO")
 	displayImageArtifacts(tempDir, "IMG")
-	
+
 	t.Log("displayImageArtifacts tested with multiple image types")
 }
 
@@ -929,16 +929,16 @@ func TestDisplayImageArtifacts(t *testing.T) {
 func TestRegisterSuccess(t *testing.T) {
 	// This test verifies the Register function path
 	// In a real environment with config files, this would work
-	
+
 	// Test that Register doesn't panic
 	defer func() {
 		if r := recover(); r != nil {
 			t.Errorf("Register panicked: %v", r)
 		}
 	}()
-	
+
 	err := Register("azure-linux", "azl3", "x86_64")
-	
+
 	// We expect error in test environment, but it should be controlled
 	if err != nil {
 		t.Logf("Register returned expected error in test environment: %v", err)
@@ -950,10 +950,10 @@ func TestRegisterSuccess(t *testing.T) {
 // TestInstallHostDependencyMapping tests the dependency mapping logic
 func TestInstallHostDependencyMapping(t *testing.T) {
 	azl := &AzureLinux{}
-	
+
 	// Call installHostDependency
 	err := azl.installHostDependency()
-	
+
 	// In test environment, this may succeed or fail based on host OS
 	if err != nil {
 		// Verify error message is reasonable
@@ -1028,7 +1028,7 @@ func TestBuildImageEdgeCases(t *testing.T) {
 	template := createTestImageTemplate()
 	template.Image.Name = ""
 	template.Target.ImageType = "raw"
-	
+
 	err := azl.BuildImage(template)
 	if err == nil {
 		t.Log("BuildImage handled empty name gracefully")
@@ -1044,7 +1044,7 @@ func TestPreProcessErrorPropagation(t *testing.T) {
 	}
 
 	template := createTestImageTemplate()
-	
+
 	err := azl.PreProcess(template)
 	if err != nil {
 		// Verify error message contains context
