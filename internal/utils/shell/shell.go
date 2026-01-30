@@ -130,6 +130,8 @@ var commandMap = map[string][]string{
 	"systemctl":          {"/usr/bin/systemctl"},
 	"test":               {"/bin/test"},
 	"awk":                {"/usr/bin/awk"},
+	"update-initramfs":   {"/usr/sbin/update-initramfs", "/usr/bin/update-initramfs"},
+	"update-grub":        {"/usr/sbin/update-grub", "/usr/bin/update-grub"},
 	// Add more mappings as needed
 }
 

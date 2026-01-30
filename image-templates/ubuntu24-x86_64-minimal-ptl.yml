@@ -401,8 +401,8 @@ systemConfig:
     # - cmd: "sed -i 's/GRUB_CMDLINE_LINUX=\"\\(.*\\)\"/GRUB_CMDLINE_LINUX=\"\\1 xe.max_vfs=7 xe.force_probe=* modprobe.blacklist=i915 udmabuf.list_limit=8192 console=tty0 console=ttyS0,115200n8\"/' /etc/default/grub"
     # - cmd: "sed -i 's/GRUB_DEFAULT=\"\\(.*\\)\"/GRUB_DEFAULT=\"\\1Advanced options for Ubuntu>Ubuntu, with Linux 6.17-intel\"/' /etc/default/grub"
     # Configure GRUB timeout
-    - cmd: "sed -e 's@^GRUB_TIMEOUT_STYLE=hidden@# GRUB_TIMEOUT_STYLE=hidden@' -e 's@^GRUB_TIMEOUT=0@GRUB_TIMEOUT=5@g' -i /etc/default/grub"
-    - cmd: "update-grub"
+    # - cmd: "sed -e 's@^GRUB_TIMEOUT_STYLE=hidden@# GRUB_TIMEOUT_STYLE=hidden@' -e 's@^GRUB_TIMEOUT=0@GRUB_TIMEOUT=5@g' -i /etc/default/grub"
+    # - cmd: "update-grub"
     # Install NPU driver (firmware, compiler, runtime only - skip kernel module for chroot)
     - cmd: "mkdir -m 755 -pv /opt/vpu"
     - cmd: "curl -s https://af01p-ir.devtools.intel.com/artifactory/drivers_vpu_linux_client-ir-local/engineering-drops/driver/main/release/25ww49.1.1/npu-linux-driver-ci-1.30.0.20251128-19767695845-ubuntu2404-release.tar.gz | tar -zxv --strip-components=1 -C /opt/vpu -f -"

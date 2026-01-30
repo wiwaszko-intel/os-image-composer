@@ -450,10 +450,10 @@ func (imageBoot *ImageBoot) InstallImageBoot(installRoot string, diskPathIdMap m
 		if pkgType == "deb" {
 			kernelVersion, err := getKernelVersionFromBoot(installRoot)
 			if err != nil {
-				log.Warnf("Failed to get kernel version for initramfs update: %v", err)
+				return fmt.Errorf("Failed to get kernel version for initramfs update: %w", err)
 			} else {
 				if err := updateInitramfsForGrub(installRoot, kernelVersion, template); err != nil {
-					log.Warnf("Failed to update initramfs: %v", err)
+					return fmt.Errorf("Failed to update initramfs: %w", err)
 				} else {
 					log.Infof("Initramfs updated successfully for kernel version: %s", kernelVersion)
 				}
