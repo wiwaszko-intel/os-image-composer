@@ -55,7 +55,7 @@ func (p *ubuntu) Init(dist, arch string) error {
 		arch = "amd64"
 	}
         if arch == "aarch64" {
-                arch="arm64"
+                arch = "arm64"
 	}
 
 	cfgs, err := loadRepoConfig("", arch) // repoURL no longer needed
