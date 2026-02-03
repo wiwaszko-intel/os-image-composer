@@ -68,6 +68,7 @@ func GenerateDot(pkgs []ospackage.PackageInfo, file string, pkgSources map[strin
 	}
 
 	legendUsed := make(map[config.PackageSource]bool)
+	edgesWritten := make(map[string]bool)
 
 	for _, pkg := range pkgs {
 		if pkg.Name == "" {
@@ -92,9 +93,14 @@ func GenerateDot(pkgs []ospackage.PackageInfo, file string, pkgSources map[strin
 			if depName == "" {
 				continue
 			}
+			edgeKey := fmt.Sprintf("%s -> %s", pkg.Name, depName)
+			if edgesWritten[edgeKey] {
+				continue
+			}
 			if _, err := fmt.Fprintf(writer, "  \"%s\" -> \"%s\";\n", pkg.Name, depName); err != nil {
 				return fmt.Errorf("writing DOT edge %s->%s: %w", pkg.Name, depName, err)
 			}
+			edgesWritten[edgeKey] = true
 		}
 	}
 

@@ -140,6 +140,16 @@ func TestGenerateDot(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name: "duplicate dependencies should be deduplicated",
+			pkgs: []ospackage.PackageInfo{
+				{Name: "libstdc++", Version: "1.0", Requires: []string{"libc6", "libc6", "libc6", "libgcc", "libgcc"}},
+				{Name: "libc6", Version: "1.0"},
+				{Name: "libgcc", Version: "1.0", Requires: []string{"libc6"}},
+			},
+			filename:    filepath.Join(tmpDir, "dedup-deps.dot"),
+			expectError: false,
+		},
+		{
 			name: "invalid path",
 			pkgs: []ospackage.PackageInfo{
 				{Name: "pkg", Version: "1.0"},
@@ -199,6 +209,9 @@ func TestGenerateDot(t *testing.T) {
 				if !strings.Contains(contentStr, nodePrefix) {
 					t.Errorf("DOT file should contain node for %s", pkg.Name)
 				}
+
+				// Check dependencies - each unique edge should appear exactly once
+				seenEdges := make(map[string]bool)
 				for _, dep := range pkg.Requires {
 					depName := debutils.CleanDependencyName(dep)
 					if depName == "" {
@@ -207,6 +220,17 @@ func TestGenerateDot(t *testing.T) {
 					edge := fmt.Sprintf("\"%s\" -> \"%s\";", pkg.Name, depName)
 					if !strings.Contains(contentStr, edge) {
 						t.Errorf("DOT file should contain edge: %s", edge)
+					}
+					seenEdges[edge] = true
+				}
+
+				// For duplicate dependency test, verify each unique edge appears only once
+				if tc.name == "duplicate dependencies should be deduplicated" {
+					for edge := range seenEdges {
+						count := strings.Count(contentStr, edge)
+						if count != 1 {
+							t.Errorf("Edge %s should appear exactly once, but appears %d times", edge, count)
+						}
 					}
 				}
 			}
