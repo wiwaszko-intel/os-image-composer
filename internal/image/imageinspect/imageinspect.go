@@ -14,6 +14,9 @@ import (
 	"github.com/diskfs/go-diskfs/partition"
 	"github.com/diskfs/go-diskfs/partition/gpt"
 	"github.com/diskfs/go-diskfs/partition/mbr"
+	"github.com/open-edge-platform/os-image-composer/internal/config"
+	"github.com/open-edge-platform/os-image-composer/internal/image/imageconvert"
+	"github.com/open-edge-platform/os-image-composer/internal/utils/file"
 	"github.com/open-edge-platform/os-image-composer/internal/utils/logger"
 	"go.uber.org/zap"
 )
@@ -24,7 +27,17 @@ type ImageSummary struct {
 	SHA256         string                `json:"sha256,omitempty"`
 	SizeBytes      int64                 `json:"sizeBytes,omitempty"`
 	PartitionTable PartitionTableSummary `json:"partitionTable,omitempty"`
+	Verity         *VerityInfo           `json:"verity,omitempty" yaml:"verity,omitempty"`
 	// SBOM           SBOMSummary 		   `json:"sbom,omitempty"`
+}
+
+// VerityInfo holds dm-verity detection information.
+type VerityInfo struct {
+	Enabled       bool     `json:"enabled" yaml:"enabled"`
+	Method        string   `json:"method,omitempty" yaml:"method,omitempty"` // "systemd-verity", "custom-initramfs", "unknown"
+	RootDevice    string   `json:"rootDevice,omitempty" yaml:"rootDevice,omitempty"`
+	HashPartition int      `json:"hashPartition,omitempty" yaml:"hashPartition,omitempty"` // partition index, 0 if none
+	Notes         []string `json:"notes,omitempty" yaml:"notes,omitempty"`
 }
 
 // PartitionTableSummary holds information about the partition table of the disk image.
@@ -182,7 +195,55 @@ func (d *DiskfsInspector) Inspect(imagePath string) (*ImageSummary, error) {
 		return nil, fmt.Errorf("stat image: %w", err)
 	}
 
-	img, err := os.Open(imagePath)
+	// Detect image format and convert to RAW if needed
+	format, err := imageconvert.DetectImageFormat(imagePath)
+	if err != nil {
+		d.logger.Warnf("Failed to detect image format, assuming raw: %v", err)
+		format = "raw"
+	}
+
+	actualImagePath := imagePath
+	var cleanupPath string
+	defer func() {
+		if cleanupPath != "" {
+			if err := os.Remove(cleanupPath); err != nil {
+				d.logger.Warnf("Failed to cleanup temporary converted image: %v", err)
+			}
+		}
+	}()
+
+	if format != "raw" {
+		d.logger.Infof("Image format is %s, converting to RAW for inspection", format)
+
+		// Get temp directory from config
+		tmpDir, err := config.EnsureTempDir("image-inspect")
+		if err != nil {
+			return nil, fmt.Errorf("failed to create temp directory: %w", err)
+		}
+
+		// Check available disk space before conversion
+		if err := file.CheckDiskSpace(tmpDir, fi.Size(), 0.20); err != nil {
+			return nil, fmt.Errorf("insufficient disk space for image conversion: %w", err)
+		}
+
+		// Convert image to RAW format
+		convertedPath, err := imageconvert.ConvertImageToRaw(imagePath, tmpDir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert image to RAW format: %w", err)
+		}
+
+		// Mark for cleanup if we created a new file
+		if convertedPath != imagePath {
+			cleanupPath = convertedPath
+			actualImagePath = convertedPath
+			fi, err = os.Stat(actualImagePath)
+			if err != nil {
+				return nil, fmt.Errorf("stat converted image: %w", err)
+			}
+		}
+	}
+
+	img, err := os.Open(actualImagePath)
 	if err != nil {
 		return nil, fmt.Errorf("open image file: %w", err)
 	}
@@ -191,19 +252,20 @@ func (d *DiskfsInspector) Inspect(imagePath string) (*ImageSummary, error) {
 	sha := ""
 	// Optional SHA256 hash computation
 	if d.HashImages {
-		d.logger.Infof("Computing SHA256 for image: %s", imagePath)
+		d.logger.Infof("Computing SHA256 for image: %s", actualImagePath)
 		sha, err = computeFileSHA256(img)
 		if err != nil {
 			return nil, fmt.Errorf("sha256 image: %w", err)
 		}
 	}
 
-	disk, err := diskfs.Open(imagePath)
+	disk, err := diskfs.Open(actualImagePath)
 	if err != nil {
 		return nil, fmt.Errorf("open disk image: %w", err)
 	}
 	defer disk.Close()
 
+	// Use original path in the summary, not the temporary converted path
 	return d.inspectCore(img, disk, disk.LogicalBlocksize, imagePath, fi.Size(), sha)
 }
 
@@ -247,11 +309,15 @@ func (d *DiskfsInspector) inspectCore(
 	}
 	ptSummary.Partitions = partitionsWithFS
 
+	// Detect dm-verity configuration
+	verityInfo := detectVerity(ptSummary)
+
 	return &ImageSummary{
 		File:           imagePath,
 		SizeBytes:      sizeBytes,
 		PartitionTable: ptSummary,
 		SHA256:         sha256sum,
+		Verity:         verityInfo,
 	}, nil
 }
 
@@ -501,4 +567,119 @@ func computeFileSHA256(f *os.File) (string, error) {
 	}
 
 	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// detectVerity inspects the partition table and UKI cmdline to detect dm-verity configuration
+func detectVerity(pt PartitionTableSummary) *VerityInfo {
+	info := &VerityInfo{}
+
+	// Look for hash partition (common names/types)
+	hashPartLoopIdx := -1
+	for i, p := range pt.Partitions {
+		name := strings.ToLower(p.Name)
+		// Check for common hash partition names
+		if strings.Contains(name, "hash") || name == "roothashmap" {
+			hashPartLoopIdx = i
+			info.HashPartition = p.Index
+			info.Notes = append(info.Notes, fmt.Sprintf("Hash partition found: %s (partition %d)", p.Name, p.Index))
+			break
+		}
+	}
+
+	// Extract cmdline from UKI if present
+	var cmdline string
+	for _, p := range pt.Partitions {
+		if p.Filesystem != nil && p.Filesystem.HasUKI {
+			for _, efi := range p.Filesystem.EFIBinaries {
+				if efi.IsUKI && efi.Cmdline != "" {
+					cmdline = efi.Cmdline
+					break
+				}
+			}
+		}
+		if cmdline != "" {
+			break
+		}
+	}
+
+	if cmdline == "" {
+		// No cmdline found, dm-verity not detected
+		if hashPartLoopIdx >= 0 {
+			info.Notes = append(info.Notes, "Hash partition exists but no UKI cmdline found")
+		}
+		return nil
+	}
+
+	// 1. systemd.verity_* parameters (standard systemd-verity)
+	if strings.Contains(cmdline, "systemd.verity_name=") ||
+		strings.Contains(cmdline, "systemd.verity_root_data=") ||
+		strings.Contains(cmdline, "systemd.verity_root_hash=") {
+		info.Enabled = true
+		info.Method = "systemd-verity"
+		info.Notes = append(info.Notes, "systemd.verity_* parameters found in cmdline")
+
+		// Extract root device from cmdline
+		if strings.Contains(cmdline, "root=") {
+			for _, part := range strings.Fields(cmdline) {
+				if strings.HasPrefix(part, "root=") {
+					info.RootDevice = strings.TrimPrefix(part, "root=")
+					break
+				}
+			}
+		}
+
+		if hashPartLoopIdx >= 0 {
+			info.Notes = append(info.Notes, fmt.Sprintf("Hash partition present at index %d", hashPartLoopIdx))
+		} else {
+			info.Notes = append(info.Notes, "WARNING: systemd.verity_* found but no hash partition detected")
+		}
+		return info
+	}
+
+	// 2. root=/dev/mapper/*verity* pattern (custom initramfs, e.g., EMT/EMF tpm-cryptsetup)
+	if strings.Contains(cmdline, "root=/dev/mapper/") && strings.Contains(cmdline, "verity") {
+		info.Enabled = true
+		info.Method = "custom-initramfs"
+		info.Notes = append(info.Notes, "root=/dev/mapper/*verity* pattern found in cmdline")
+
+		// Extract the exact root device
+		for _, part := range strings.Fields(cmdline) {
+			if strings.HasPrefix(part, "root=") {
+				info.RootDevice = strings.TrimPrefix(part, "root=")
+				break
+			}
+		}
+
+		if hashPartLoopIdx >= 0 {
+			info.Notes = append(info.Notes, fmt.Sprintf("Hash partition present at index %d", hashPartLoopIdx))
+			info.Notes = append(info.Notes, "Likely using separate hash partition for dm-verity")
+		} else {
+			info.Notes = append(info.Notes, "No separate hash partition detected")
+			info.Notes = append(info.Notes, "Likely using custom initramfs (e.g., dracut tpm-cryptsetup module)")
+			info.Notes = append(info.Notes, "Hash data may be: appended to rootfs, embedded in FDE, or managed by initramfs")
+		}
+		return info
+	}
+
+	// 3. Check for roothash= parameter (direct hash specification)
+	if strings.Contains(cmdline, "roothash=") {
+		info.Enabled = true
+		info.Method = "roothash-parameter"
+		info.Notes = append(info.Notes, "roothash= parameter found in cmdline")
+
+		for _, part := range strings.Fields(cmdline) {
+			if strings.HasPrefix(part, "root=") {
+				info.RootDevice = strings.TrimPrefix(part, "root=")
+				break
+			}
+		}
+
+		if hashPartLoopIdx >= 0 {
+			info.Notes = append(info.Notes, fmt.Sprintf("Hash partition present at index %d", hashPartLoopIdx))
+		}
+		return info
+	}
+
+	// No dm-verity detected
+	return nil
 }
