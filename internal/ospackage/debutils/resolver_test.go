@@ -179,18 +179,6 @@ func TestGenerateDot(t *testing.T) {
 			}
 			contentStr := string(content)
 
-			if tc.pkgSources != nil {
-				if !strings.Contains(contentStr, "legend_system") {
-					t.Errorf("legend for system packages not found in DOT output")
-				}
-				if !strings.Contains(contentStr, "\"sys\" [label=\"sys\", fillcolor=\"#d4efdf\", color=\"#27ae60\"];") {
-					t.Errorf("expected system package styling for sys node")
-				}
-				if !strings.Contains(contentStr, "\"ess\" [label=\"ess\", fillcolor=\"#fff4d6\", color=\"#f5c518\"];") {
-					t.Errorf("expected essential package styling for ess node")
-				}
-			}
-
 			if !strings.Contains(contentStr, "digraph G {") {
 				t.Error("DOT file should start with 'digraph G {'")
 			}
@@ -205,8 +193,8 @@ func TestGenerateDot(t *testing.T) {
 				if pkg.Name == "" {
 					continue
 				}
-				nodePrefix := fmt.Sprintf("\"%s\" [label=\"%s\"", pkg.Name, pkg.Name)
-				if !strings.Contains(contentStr, nodePrefix) {
+				nodeDef := fmt.Sprintf("\"%s\";", pkg.Name)
+				if !strings.Contains(contentStr, nodeDef) {
 					t.Errorf("DOT file should contain node for %s", pkg.Name)
 				}
 

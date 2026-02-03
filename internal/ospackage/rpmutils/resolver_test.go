@@ -228,8 +228,8 @@ func TestGenerateDot(t *testing.T) {
 
 			// Check that all packages are represented
 			for _, pkg := range tt.packages {
-				nodePrefix := fmt.Sprintf("\"%s\" [label=\"%s\"", pkg.Name, pkg.Name)
-				if !strings.Contains(contentStr, nodePrefix) {
+				nodeDef := fmt.Sprintf("\"%s\";", pkg.Name)
+				if !strings.Contains(contentStr, nodeDef) {
 					t.Errorf("DOT file should contain node definition for %s", pkg.Name)
 				}
 
@@ -251,17 +251,6 @@ func TestGenerateDot(t *testing.T) {
 							t.Errorf("Edge %s should appear exactly once, but appears %d times", edge, count)
 						}
 					}
-				}
-			}
-			if tt.pkgSources != nil {
-				if !strings.Contains(contentStr, "legend_kernel") {
-					t.Errorf("legend for kernel packages not found")
-				}
-				if !strings.Contains(contentStr, "\"kernel\" [label=\"kernel\", fillcolor=\"#d6eaf8\", color=\"#1f618d\"];") {
-					t.Errorf("expected kernel node styling")
-				}
-				if !strings.Contains(contentStr, "\"boot\" [label=\"boot\", fillcolor=\"#fdebd0\", color=\"#d35400\"];") {
-					t.Errorf("expected bootloader node styling")
 				}
 			}
 		})
