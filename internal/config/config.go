@@ -117,6 +117,7 @@ type ImmutabilityConfig struct {
 	SecureBootDBKey string `yaml:"secureBootDBKey,omitempty"` // SecureBootDBKey: The private key file used to sign the bootloader for UEFI Secure Boot
 	SecureBootDBCrt string `yaml:"secureBootDBCrt,omitempty"` // SecureBootDBCrt: The certificate file in PEM format, which corresponds to the private key for UEFI Secure Boot
 	SecureBootDBCer string `yaml:"secureBootDBCer,omitempty"` // SecureBootDBCer: The same certificate file, but provided in DER (binary) format specifically for UEFI firmware
+	wasProvided     bool   `yaml:"-"`                         // Internal flag to track if section was provided
 }
 
 // UserConfig holds the user configuration
@@ -306,8 +307,8 @@ func (t *ImageTemplate) GetInitramfsTemplate() (string, error) {
 	}
 	if filepath.IsAbs(t.SystemConfig.Initramfs.Template) {
 		initrdTemplateFilePath = t.SystemConfig.Initramfs.Template
-		if _, err := os.Stat(initrdTemplateFilePath); os.IsNotExist(err) {
-			return "", fmt.Errorf("initrd template file does not exist: %s", initrdTemplateFilePath)
+		if _, err := os.Stat(initrdTemplateFilePath); err != nil {
+			return "", fmt.Errorf("initrd template file does not exist or is not accessible: %s", initrdTemplateFilePath)
 		}
 	} else {
 		if len(t.PathList) == 0 {
@@ -346,10 +347,10 @@ func (t *ImageTemplate) GetPackages() []string {
 
 var packageSourcePriority = map[PackageSource]int{
 	PackageSourceUnknown:    0,
-	PackageSourceEssential:  10,
+	PackageSourceSystem:     10,
 	PackageSourceKernel:     20,
 	PackageSourceBootloader: 20,
-	PackageSourceSystem:     30,
+	PackageSourceEssential:  30,
 }
 
 // GetPackageSourceMap returns a map of package name to the template section that requested it.
@@ -367,10 +368,10 @@ func (t *ImageTemplate) GetPackageSourceMap() map[string]PackageSource {
 		}
 	}
 
-	setSources(t.EssentialPkgList, PackageSourceEssential)
+	setSources(t.SystemConfig.Packages, PackageSourceSystem)
 	setSources(t.KernelPkgList, PackageSourceKernel)
 	setSources(t.BootloaderPkgList, PackageSourceBootloader)
-	setSources(t.SystemConfig.Packages, PackageSourceSystem)
+	setSources(t.EssentialPkgList, PackageSourceEssential)
 
 	return sources
 }
@@ -612,7 +613,7 @@ func (t *ImageTemplate) GetPackageRepositories() []PackageRepository {
 
 // LoadProviderRepoConfig loads provider repository configuration from YAML file
 // Returns a slice of ProviderRepoConfig to support multiple repositories
-func LoadProviderRepoConfig(targetOS, targetDist string) ([]ProviderRepoConfig, error) {
+func LoadProviderRepoConfig(targetOS, targetDist string, arch string) ([]ProviderRepoConfig, error) {
 	// Get the target OS config directory
 	targetOsConfigDir, err := GetTargetOsConfigDir(targetOS, targetDist)
 	if err != nil {
@@ -620,7 +621,7 @@ func LoadProviderRepoConfig(targetOS, targetDist string) ([]ProviderRepoConfig, 
 	}
 
 	// Construct path to repo.yml
-	repoConfigPath := filepath.Join(targetOsConfigDir, "providerconfigs", "repo.yml")
+	repoConfigPath := filepath.Join(targetOsConfigDir, "providerconfigs", arch+"_repo.yml")
 
 	// Read the YAML file
 	yamlData, err := security.SafeReadFile(repoConfigPath, security.RejectSymlinks)
@@ -723,4 +724,23 @@ func (t *ImageTemplate) GetRepositoryByCodename(codename string) *PackageReposit
 		}
 	}
 	return nil
+}
+
+// UnmarshalYAML implements yaml.Unmarshaler to track if immutability section was provided
+func (i *ImmutabilityConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	// Use a type alias to avoid infinite recursion
+	type alias ImmutabilityConfig
+	temp := (*alias)(i)
+
+	if err := unmarshal(temp); err != nil {
+		return err
+	}
+
+	i.wasProvided = true // Mark that this section was explicitly provided in YAML
+	return nil
+}
+
+// WasProvided returns true if the immutability section was explicitly defined in YAML
+func (i *ImmutabilityConfig) WasProvided() bool {
+	return i.wasProvided
 }
