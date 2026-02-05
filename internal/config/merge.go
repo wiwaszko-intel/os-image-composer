@@ -142,15 +142,15 @@ func MergeConfigurations(userTemplate, defaultTemplate *ImageTemplate) (*ImageTe
 		// pretty, err := json.MarshalIndent(mergedTemplate, "", "  ")
 		// Build a redacted debug view of the merged template that avoids sensitive fields
 		debugView := struct {
-			ImageName        string `json:"imageName"`
-			SystemConfigName string `json:"systemConfigName"`
-			Immutability     bool   `json:"immutability"`
-			UserCount        int    `json:"userCount"`
+			ImageName        string   `json:"imageName"`
+			SystemConfigName string   `json:"systemConfigName"`
+			Immutability     bool     `json:"immutability"`
+			Packages         []string `json:"packages"`
 		}{
 			ImageName:        mergedTemplate.Image.Name,
 			SystemConfigName: mergedTemplate.SystemConfig.Name,
 			Immutability:     mergedTemplate.IsImmutabilityEnabled(),
-			UserCount:        len(mergedTemplate.GetUsers()),
+			Packages:         mergedTemplate.SystemConfig.Packages,
 		}
 
 		pretty, err := json.MarshalIndent(debugView, "", "  ")
