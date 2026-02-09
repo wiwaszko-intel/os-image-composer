@@ -207,6 +207,46 @@ func compareVersions(v1, v2 string) int {
 	return cmp
 }
 
+// Known RPM architectures
+var knownRPMArches = map[string]bool{
+	"x86_64":   true,
+	"i386":     true,
+	"i486":     true,
+	"i586":     true,
+	"i686":     true,
+	"aarch64":  true,
+	"arm64":    true,
+	"armv7hl":  true,
+	"armv7l":   true,
+	"ppc64":    true,
+	"ppc64le":  true,
+	"s390":     true,
+	"s390x":    true,
+	"noarch":   true,
+	"src":      true,
+}
+
+// isDistMarker checks if a token contains a distribution marker pattern
+func isDistMarker(token string) bool {
+	// Check for .azl3, .azl4, etc.
+	if strings.Contains(token, ".azl") {
+		return true
+	}
+	// Check for .el7, .el8, .el9, etc. (RHEL/CentOS)
+	for i := 0; i < len(token)-2; i++ {
+		if token[i:i+3] == ".el" && i+3 < len(token) && token[i+3] >= '0' && token[i+3] <= '9' {
+			return true
+		}
+	}
+	// Check for .fc38, .fc39, etc. (Fedora)
+	for i := 0; i < len(token)-2; i++ {
+		if token[i:i+3] == ".fc" && i+3 < len(token) && token[i+3] >= '0' && token[i+3] <= '9' {
+			return true
+		}
+	}
+	return false
+}
+
 // extractBasePackageNameFromFile extracts the base package name from a full package filename
 // e.g., "curl-8.8.0-2.azl3.x86_64.rpm" -> "curl"
 // e.g., "curl-devel-8.8.0-1.azl3.x86_64.rpm" -> "curl-devel"
@@ -221,17 +261,30 @@ func extractBasePackageNameFromFile(fullName string) string {
 		return name
 	}
 
-	// First, try to find dist/arch markers (.azl3, .el9, .fc39, etc.) and work backwards
+	// First, try to find dist/arch markers and work backwards
 	// This handles the <name>-<version>-<release>.<dist>.<arch> format
 	for i := len(parts) - 1; i >= 0; i-- {
 		part := parts[i]
-		// Check if this part contains a dist marker (azl3, el9, fc39, etc.) or arch (x86_64, aarch64, noarch)
-		if strings.Contains(part, ".azl3") || strings.Contains(part, ".el") ||
-			strings.Contains(part, ".fc") || strings.Contains(part, "x86_64") ||
-			strings.Contains(part, "aarch64") || strings.Contains(part, "noarch") ||
-			strings.Contains(part, "i686") {
-			// This is the release part. Name ends before the previous numeric part (version)
-			// Work backwards to find where version starts
+		
+		// Check if this part contains a known architecture
+		// Split by '.' and check if the last segment is a known arch
+		dotParts := strings.Split(part, ".")
+		if len(dotParts) > 1 {
+			lastSegment := dotParts[len(dotParts)-1]
+			if knownRPMArches[lastSegment] {
+				// This is the release part with arch. Work backwards to find where version starts
+				for j := i - 1; j >= 1; j-- {
+					if len(parts[j]) > 0 && (parts[j][0] >= '0' && parts[j][0] <= '9') {
+						// This is likely the start of the version
+						return strings.Join(parts[:j], "-")
+					}
+				}
+			}
+		}
+		
+		// Check if this part contains a dist marker
+		if isDistMarker(part) {
+			// This is the release part with dist marker. Work backwards to find where version starts
 			for j := i - 1; j >= 1; j-- {
 				if len(parts[j]) > 0 && (parts[j][0] >= '0' && parts[j][0] <= '9') {
 					// This is likely the start of the version
