@@ -367,9 +367,9 @@ func TestFindAllCandidates(t *testing.T) {
 			Provides: []string{"provided-capability"},
 		},
 		{
-			Name:  "file-provider",
+			Name:    "file-provider",
 			Version: "1.0-1",
-			Files: []string{"/usr/bin/curl"},
+			Files:   []string{"/usr/bin/curl"},
 		},
 	}
 
