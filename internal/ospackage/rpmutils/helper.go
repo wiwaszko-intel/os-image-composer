@@ -261,58 +261,43 @@ func extractBasePackageNameFromFile(fullName string) string {
 		return name
 	}
 
-	// First, try to find dist/arch markers and work backwards
-	// This handles the <name>-<version>-<release>.<dist>.<arch> format
+	// First, check if this is a full RPM filename format by looking for architecture markers
+	// This allows us to use different strategies for full filenames vs simplified names
+	hasArchMarker := false
+	archMarkerIndex := -1
 	for i := len(parts) - 1; i >= 0; i-- {
 		part := parts[i]
-
-		// Check if this part contains a known architecture
-		// Split by '.' and check if the last segment is a known arch
 		dotParts := strings.Split(part, ".")
 		if len(dotParts) > 1 {
 			lastSegment := dotParts[len(dotParts)-1]
 			if knownRPMArches[lastSegment] {
-				// This is the release part with arch. Work backwards to find where version starts
-				for j := i - 1; j >= 1; j-- {
-					if len(parts[j]) > 0 && (parts[j][0] >= '0' && parts[j][0] <= '9') {
-						// This is likely the start of the version
-						return strings.Join(parts[:j], "-")
-					}
-				}
-			}
-		}
-
-		// Check if this part contains a dist marker
-		if isDistMarker(part) {
-			// This is the release part with dist marker. Work backwards to find where version starts
-			for j := i - 1; j >= 1; j-- {
-				if len(parts[j]) > 0 && (parts[j][0] >= '0' && parts[j][0] <= '9') {
-					// This is likely the start of the version
-					return strings.Join(parts[:j], "-")
-				}
+				hasArchMarker = true
+				archMarkerIndex = i
+				break
 			}
 		}
 	}
 
-	// Fallback: Find the first part that looks like a version (starts with digit and contains dot+digit)
-	// This handles simple cases where there's no clear dist marker
-	// Requires digit-dot-digit pattern to avoid matching release+arch like "1.ppc64le" or "1.s390x"
-	for i := 1; i < len(parts); i++ {
-		part := parts[i]
-		if len(part) > 0 && (part[0] >= '0' && part[0] <= '9') {
-			// Check if it matches version pattern (e.g., "8.8.0", "10.42") with digit after dot
-			dotIdx := strings.Index(part, ".")
-			if dotIdx > 0 && dotIdx < len(part)-1 {
-				// Check if character after dot is a digit (to avoid "1.ppc64le")
-				if part[dotIdx+1] >= '0' && part[dotIdx+1] <= '9' {
-					// This looks like a version (e.g., "8.8.0")
-					return strings.Join(parts[:i], "-")
-				}
+	// If we have a full RPM filename with architecture marker, use backward search from arch
+	if hasArchMarker {
+		// Work backwards from the arch marker to find where version starts
+		// Prefer parts with dots (more likely to be version) over plain numbers
+		for j := archMarkerIndex - 1; j >= 1; j-- {
+			if len(parts[j]) > 0 && (parts[j][0] >= '0' && parts[j][0] <= '9') && strings.Contains(parts[j], ".") {
+				// This looks like a version part (starts with digit and contains dot)
+				return strings.Join(parts[:j], "-")
+			}
+		}
+		// If no dotted version found, take first digit-starting part
+		for j := archMarkerIndex - 1; j >= 1; j-- {
+			if len(parts[j]) > 0 && (parts[j][0] >= '0' && parts[j][0] <= '9') {
+				return strings.Join(parts[:j], "-")
 			}
 		}
 	}
 
-	// Second fallback: Find first numeric part
+	// No architecture marker found - use simpler forward search (for test cases and simplified names)
+	// Find the first part that looks like a version (starts with digit)
 	for i := 1; i < len(parts); i++ {
 		if len(parts[i]) > 0 && (parts[i][0] >= '0' && parts[i][0] <= '9') {
 			return strings.Join(parts[:i], "-")
