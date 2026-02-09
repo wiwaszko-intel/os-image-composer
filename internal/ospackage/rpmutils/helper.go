@@ -209,21 +209,21 @@ func compareVersions(v1, v2 string) int {
 
 // Known RPM architectures
 var knownRPMArches = map[string]bool{
-	"x86_64":   true,
-	"i386":     true,
-	"i486":     true,
-	"i586":     true,
-	"i686":     true,
-	"aarch64":  true,
-	"arm64":    true,
-	"armv7hl":  true,
-	"armv7l":   true,
-	"ppc64":    true,
-	"ppc64le":  true,
-	"s390":     true,
-	"s390x":    true,
-	"noarch":   true,
-	"src":      true,
+	"x86_64":  true,
+	"i386":    true,
+	"i486":    true,
+	"i586":    true,
+	"i686":    true,
+	"aarch64": true,
+	"arm64":   true,
+	"armv7hl": true,
+	"armv7l":  true,
+	"ppc64":   true,
+	"ppc64le": true,
+	"s390":    true,
+	"s390x":   true,
+	"noarch":  true,
+	"src":     true,
 }
 
 // isDistMarker checks if a token contains a distribution marker pattern
@@ -265,7 +265,7 @@ func extractBasePackageNameFromFile(fullName string) string {
 	// This handles the <name>-<version>-<release>.<dist>.<arch> format
 	for i := len(parts) - 1; i >= 0; i-- {
 		part := parts[i]
-		
+
 		// Check if this part contains a known architecture
 		// Split by '.' and check if the last segment is a known arch
 		dotParts := strings.Split(part, ".")
@@ -281,7 +281,7 @@ func extractBasePackageNameFromFile(fullName string) string {
 				}
 			}
 		}
-		
+
 		// Check if this part contains a dist marker
 		if isDistMarker(part) {
 			// This is the release part with dist marker. Work backwards to find where version starts
