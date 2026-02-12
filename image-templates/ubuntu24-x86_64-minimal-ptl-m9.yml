@@ -379,7 +379,7 @@ systemConfig:
     - ca-certificates
     - software-properties-common
     - cpuid
-    - clinfo 
+    - clinfo
     
   kernel:
     version: "6.17"
