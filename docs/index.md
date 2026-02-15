@@ -611,13 +611,15 @@ See [License](https://github.com/open-edge-platform/os-image-composer/blob/main/
 :::{toctree}
 :hidden:
 
-Architecture <architecture/architecture>
-Prerequisites <tutorial/prerequisite>
-Secure Boot Configuration <tutorial/configure-secure-boot>
-Configure Users <tutorial/configure-image-user>
-Customize Image Build <tutorial/configure-additional-actions-for-build>
-Configure Multiple Package Repositories <tutorial/configure-multiple-package-repositories>
-release-notes
+Installation Guide <tutorial/installation.md>
+Prerequisites <tutorial/prerequisite.md>
+Architecture <architecture/architecture.md>
+Usage Guide <tutorial/usage-guide.md>
+Secure Boot Configuration <tutorial/configure-secure-boot.md>
+Configure Users <tutorial/configure-image-user.md>
+Customize Image Build <tutorial/configure-additional-actions-for-build.md>
+Configure Multiple Package Repositories <tutorial/configure-multiple-package-repositories.md>
+release-notes.md
 
 :::
 hide_directive-->
