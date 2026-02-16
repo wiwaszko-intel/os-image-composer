@@ -591,7 +591,12 @@ systemConfigs:
 ## Get Help
 
 - Run the following command in the command-line tool to see all the commands
-  and options: `./os-image-composer --help`
+  and options:
+
+  ```sh
+  ./os-image-composer --help
+  ```
+
 - See the [CLI Specification and Reference](./architecture/os-image-composer-cli-specification.md).
 - Read the [documentation](https://github.com/open-edge-platform/os-image-composer/tree/main/docs).
 - Troubleshoot by using the [Build Process documentation](./architecture/os-image-composer-build-process.md#troubleshooting-build-issues).
