@@ -400,11 +400,11 @@ func (t *ImageTemplate) downloadAndAddGPGKeys(repos []PackageRepository) error {
 		}
 
 		// Dearmor the GPG key to convert ASCII-armored keys to binary format
-		log.Debugf("Dearmorming GPG key for repository %s", getRepositoryName(repo))
+		log.Debugf("Dearmoring GPG key for repository %s", getRepositoryName(repo))
 		dearmoredKeyData, err := dearmorGPGKey(keyData)
 		if err != nil {
 			log.Warnf("Failed to dearmor GPG key for %s, using original key data: %v", getRepositoryName(repo), err)
-			// If dearmorming fails, use the original key data (might already be in binary format)
+			// If dearmoring fails, use the original key data (might already be in binary format)
 			dearmoredKeyData = keyData
 		}
 
