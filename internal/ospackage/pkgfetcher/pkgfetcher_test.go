@@ -366,3 +366,65 @@ func TestFetchPackages_SlowServer(t *testing.T) {
 		t.Errorf("Download completed too quickly: %v", duration)
 	}
 }
+
+// TestFetchPackages_RetryOnTransientError verifies retries for transient HTTP failures.
+func TestFetchPackages_RetryOnTransientError(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "pkgfetcher_test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	requestCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		if requestCount < 3 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("retry-success"))
+	}))
+	defer server.Close()
+
+	url := server.URL + "/retry-package.rpm"
+
+	err = FetchPackages([]string{url}, tempDir, 1)
+	if err != nil {
+		t.Fatalf("FetchPackages failed unexpectedly after retries: %v", err)
+	}
+
+	if requestCount != 3 {
+		t.Errorf("Expected 3 attempts (2 failures + 1 success), got %d", requestCount)
+	}
+
+	filePath := filepath.Join(tempDir, "retry-package.rpm")
+	if _, statErr := os.Stat(filePath); os.IsNotExist(statErr) {
+		t.Fatalf("Expected file was not downloaded after retries")
+	}
+}
+
+// TestFetchPackages_NoRetryOnPermanentError verifies no retries for permanent HTTP failures.
+func TestFetchPackages_NoRetryOnPermanentError(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "pkgfetcher_test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	requestCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	err = FetchPackages([]string{server.URL + "/missing.rpm"}, tempDir, 1)
+	if err == nil {
+		t.Fatalf("Expected FetchPackages to fail for permanent HTTP error")
+	}
+
+	if requestCount != 1 {
+		t.Errorf("Expected exactly 1 attempt for 404 response, got %d", requestCount)
+	}
+}
