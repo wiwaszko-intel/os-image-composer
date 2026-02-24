@@ -73,7 +73,7 @@ func downloadWithRetry(client *http.Client, url, destPath string, threadcontext 
 				}
 				// writtenBytes zero means empty Body, so retry
 				if writtenBytes == 0 {
-					lastErr = fmt.Errorf("empty response body") 
+					lastErr = fmt.Errorf("empty response body")
 				}
 
 				lastErr = nil
@@ -94,7 +94,7 @@ func downloadWithRetry(client *http.Client, url, destPath string, threadcontext 
 
 		log.Warnf("download attempt %d/%d failed for %s: %v; retrying in %s", attempt, maxDownloadAttempts, url, lastErr, backoff)
 		time.Sleep(backoff)
-		backoff *= time.Duration(2 * (threadcontext +1))
+		backoff *= time.Duration(2 * (threadcontext + 1))
 	}
 
 	return fmt.Errorf("download failed after %d attempts: %w", maxDownloadAttempts, lastErr)
