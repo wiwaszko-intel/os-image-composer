@@ -20,7 +20,6 @@ go build -buildmode=pie -ldflags "-s -w" ./cmd/os-image-composer
 sudo apt install systemd-ukify mmdebstrap
 # Or run it directly:
 go run ./cmd/os-image-composer --help
-```
 
 # 3. Compose an image
 sudo -E ./os-image-composer build image-templates/azl3-x86_64-edge-raw.yml
