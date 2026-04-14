@@ -2,7 +2,7 @@
 
 OS Image Composer is a command-line tool for building custom, bootable Linux
 images from pre-built packages. Define your requirements in a YAML template,
-run one command to get a RAW image ready to deploy (ISO installers require an extra step; see the Installation Guide).
+run one command to get a RAW image ready for deployment (ISO installers require an extra step; see the Installation Guide).
 
 **Supported distributions:** Azure Linux (azl3),
 [Edge Microvisor Toolkit](https://docs.openedgeplatform.intel.com/2026.0/edge-microvisor-toolkit/index.html)
